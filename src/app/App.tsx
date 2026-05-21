@@ -1,35 +1,47 @@
-import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { AnimatePresence, LayoutGroup, motion, useScroll, useTransform } from "framer-motion";
+import { ArrowRight, Heart } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import * as tf from "@tensorflow/tfjs";
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Footer } from "./components/Footer";
 import { Navbar } from "./components/Navbar";
-import { products, promoSlides } from "./data/products";
+import { promoSlides } from "./data/products";
+import { normalizeCategory, useSupabaseCommerce } from "./hooks/use-supabase-commerce";
 import { CommerceProvider, useCommerceStore } from "./store/commerce-store";
-import type { Category, Product } from "./types/catalog";
-import { Heart, ChevronLeft, ChevronRight } from "lucide-react";
+import type { Category, CustomerRecord, OrderRecord, Product } from "./types/catalog";
+
+type CommerceData = ReturnType<typeof useSupabaseCommerce>;
 
 function AppShell() {
   const location = useLocation();
+  const commerce = useSupabaseCommerce();
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="min-h-screen bg-[#f4f4f2] text-[#121212]">
       <Navbar />
       <main className="pt-16">
         <AnimatePresence mode="wait">
           <motion.div key={location.pathname} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
             <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/products" element={<ProductsPage />} />
-              <Route path="/products/:slug" element={<ProductDetailPage />} />
-              <Route path="/categories/laptops" element={<CategoryPage category="laptops" />} />
-              <Route path="/categories/phones" element={<CategoryPage category="phones" />} />
-              <Route path="/categories/tablets" element={<CategoryPage category="tablets" />} />
-              <Route path="/categories/desktops" element={<CategoryPage category="desktops" />} />
-              <Route path="/cart" element={<CartPage />} />
-              <Route path="/wishlist" element={<WishlistPage />} />
-              <Route path="/search" element={<SearchPage />} />
-              <Route path="/about" element={<TextPage title="About" body="TechElite creates precision devices for people doing meaningful work." />} />
-              <Route path="/contact" element={<TextPage title="Contact" body="Reach us at support@techelite.example for product and order support." />} />
-              <Route path="/support" element={<TextPage title="Support" body="Warranty, repairs, and service options are available globally." />} />
+              <Route path="/" element={<LandingPage products={commerce.products} />} />
+              <Route path="/products" element={<ProductsPage products={commerce.products} />} />
+              <Route path="/products/:slug" element={<ProductDetailPage products={commerce.products} />} />
+              <Route path="/categories/laptops" element={<CategoryPage products={commerce.products} category="laptops" />} />
+              <Route path="/categories/phones" element={<CategoryPage products={commerce.products} category="phones" />} />
+              <Route path="/categories/tablets" element={<CategoryPage products={commerce.products} category="tablets" />} />
+              <Route path="/categories/desktops" element={<CategoryPage products={commerce.products} category="desktops" />} />
+              <Route path="/cart" element={<CartPage products={commerce.products} />} />
+              <Route path="/wishlist" element={<WishlistPage products={commerce.products} />} />
+              <Route path="/search" element={<SearchPage products={commerce.products} />} />
+              <Route path="/about" element={<TextPage title="About" body="We design luxury consumer technology for focused creators." />} />
+              <Route path="/contact" element={<TextPage title="Contact" body="Connect with a product specialist at concierge@techelite.example." />} />
+              <Route path="/support" element={<TextPage title="Support" body="Priority repair, setup concierge, and enterprise support are available globally." />} />
+              <Route path="/admin" element={<AdminDashboard commerce={commerce} />} />
+              <Route path="/admin/products" element={<AdminProductsPage commerce={commerce} />} />
+              <Route path="/admin/orders" element={<AdminOrdersPage commerce={commerce} />} />
+              <Route path="/admin/customers" element={<AdminCustomersPage commerce={commerce} />} />
+              <Route path="/admin/analytics" element={<AdminAnalyticsPage commerce={commerce} />} />
+              <Route path="/admin/machine-learning" element={<AdminMLPage commerce={commerce} />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </motion.div>
@@ -40,223 +52,200 @@ function AppShell() {
   );
 }
 
-function LandingPage() {
-  const [heroIdx, setHeroIdx] = useState(0);
-  const [promoIdx, setPromoIdx] = useState(0);
-  const [touchStart, setTouchStart] = useState(0);
-  const phones = products.filter((p) => p.category === "phones");
-  const navigate = useNavigate();
+function LandingPage({ products }: { products: Product[] }) {
+  const laptop = products.find((p) => p.category === "laptops") ?? products[0];
+  const phone = products.find((p) => p.category === "phones") ?? products[1];
+  const tablet = products.find((p) => p.category === "tablets") ?? products[2];
+  const desktop = products.find((p) => p.category === "desktops") ?? products[3];
   const { scrollYProgress } = useScroll();
-  const heroY = useTransform(scrollYProgress, [0, 0.2], [0, -60]);
+  const heroY = useTransform(scrollYProgress, [0, 0.25], [0, -90]);
+  if (!laptop || !phone || !tablet || !desktop) return <TextPage title="Loading" body="Preparing product scenes..." />;
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setHeroIdx((p) => (p + 1) % phones.length);
-      setPromoIdx((p) => (p + 1) % promoSlides.length);
-    }, 4200);
-    return () => clearInterval(timer);
-  }, [phones.length]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") setHeroIdx((p) => (p + 1) % phones.length);
-      if (e.key === "ArrowLeft") setHeroIdx((p) => (p - 1 + phones.length) % phones.length);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [phones.length]);
   return (
     <>
-      <section className="min-h-screen px-6 py-16 flex flex-col justify-center items-center">
-        <motion.h1 className="text-5xl md:text-7xl font-light tracking-tight text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          {"Performance Redefined".split("").map((c, i) => (
-            <motion.span key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}>{c}</motion.span>
-          ))}
-        </motion.h1>
-        <motion.img src={products[0].images[0]} alt={products[0].name} style={{ y: heroY }} className="max-w-4xl w-full mt-12 object-contain" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} />
-        <button className="mt-10 px-8 py-3 rounded-full bg-black text-white text-sm" onClick={() => navigate(`/products/${products[0].slug}`)}>Explore Product</button>
-      </section>
-
-      <section className="px-6 py-20 bg-neutral-50">
-        <h2 className="text-4xl font-light mb-10">Smartphones</h2>
-        <div className="max-w-6xl mx-auto">
-          <div className="relative">
-            <AnimatePresence mode="wait">
-              <motion.div key={heroIdx} initial={{ opacity: 0.2, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="grid md:grid-cols-2 gap-8 items-center" onTouchStart={(e) => setTouchStart(e.changedTouches[0].clientX)} onTouchEnd={(e) => { const diff = touchStart - e.changedTouches[0].clientX; if (diff > 30) setHeroIdx((p) => (p + 1) % phones.length); if (diff < -30) setHeroIdx((p) => (p - 1 + phones.length) % phones.length); }}>
-                <img src={phones[heroIdx].images[0]} alt={phones[heroIdx].name} className="w-full h-[420px] object-cover rounded-3xl" />
-                <div>
-                  <h3 className="text-3xl">{phones[heroIdx].name}</h3>
-                  <p className="text-black/60 mt-3">{phones[heroIdx].description}</p>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-            <div className="mt-6 flex gap-3">
-              <button className="p-2 border rounded-full" onClick={() => setHeroIdx((p) => (p - 1 + phones.length) % phones.length)}><ChevronLeft /></button>
-              <button className="p-2 border rounded-full" onClick={() => setHeroIdx((p) => (p + 1) % phones.length)}><ChevronRight /></button>
-            </div>
+      <section className="relative min-h-screen px-6 md:px-10 pt-24 pb-8 overflow-hidden bg-[radial-gradient(circle_at_top,#ffffff_0%,#f4f4f2_55%,#e9ecef_100%)]">
+        <motion.div className="max-w-6xl mx-auto" style={{ y: heroY }}>
+          <p className="text-xs uppercase tracking-[0.25em] text-black/55">Laptop Hero Scene</p>
+          <h1 className="mt-5 text-5xl md:text-8xl font-light tracking-tight">Performance Redefined</h1>
+          <p className="mt-4 text-lg text-black/60 max-w-xl">Built for precision and power.</p>
+          <div className="flex gap-4 mt-8">
+            <Link to={`/products/${laptop.slug}`} className="px-7 py-3 rounded-full bg-black text-white text-sm">Shop Now</Link>
+            <Link to="/about" className="px-7 py-3 rounded-full border border-black/25 text-sm">Learn More</Link>
           </div>
-        </div>
+          <motion.img src={laptop.images[0]} alt={laptop.name} className="w-full max-w-6xl mx-auto mt-14 object-contain" initial={{ opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.2 }} />
+        </motion.div>
       </section>
-
-      <section className="px-6 py-24">
-        <h2 className="text-4xl font-light mb-8">Featured Story</h2>
-        <div className="grid gap-8">
-          {products.filter((p) => p.featured).map((p, i) => (
-            <motion.div key={p.id} initial={{ opacity: 0, y: 25 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.06 }} className="grid md:grid-cols-2 gap-8 items-center">
-              <img src={p.images[1]} alt={p.name} className="rounded-2xl h-[320px] w-full object-cover" />
-              <div>
-                <p className="text-sm text-black/60">{p.tagline}</p>
-                <h3 className="text-3xl mt-1">{p.name}</h3>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      <section className="px-6 py-20 bg-black text-white">
-        <AnimatePresence mode="wait">
-          <motion.div key={promoIdx} initial={{ opacity: 0.35 }} animate={{ opacity: 1 }} className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8 items-center">
-            <img src={promoSlides[promoIdx].image} alt={promoSlides[promoIdx].title} className="rounded-3xl w-full h-[360px] object-cover" />
-            <div>
-              <h3 className="text-4xl font-light">{promoSlides[promoIdx].title}</h3>
-              <p className="mt-3 text-white/70">{promoSlides[promoIdx].subtitle}</p>
-              <div className="mt-6 h-1 bg-white/15"><motion.div className="h-full bg-white" animate={{ width: `${((promoIdx + 1) / promoSlides.length) * 100}%` }} /></div>
-            </div>
+      <EditorialLine text="Technology should disappear into your workflow." />
+      <section className="px-6 md:px-10 py-24">
+        <div className="max-w-[1320px] mx-auto grid lg:grid-cols-[0.85fr_1.15fr] gap-14 items-center">
+          <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.35 }}>
+            <p className="uppercase text-xs tracking-[0.2em] text-black/50">Phone Reveal Scene</p>
+            <h2 className="mt-4 text-4xl md:text-6xl font-light tracking-tight">Precision In Your Palm</h2>
+            <p className="mt-5 text-black/60 max-w-md">An asymmetric composition engineered to keep attention on the object.</p>
+            <Link to={`/products/${phone.slug}`} className="inline-flex gap-2 items-center mt-8 border-b border-black/35 pb-1 text-sm">Explore Phone <ArrowRight className="w-4 h-4" /></Link>
           </motion.div>
-        </AnimatePresence>
-        <div className="max-w-6xl mx-auto mt-6 flex gap-3">
-          <button className="p-2 border border-white/40 rounded-full" onClick={() => setPromoIdx((p) => (p - 1 + promoSlides.length) % promoSlides.length)}><ChevronLeft /></button>
-          <button className="p-2 border border-white/40 rounded-full" onClick={() => setPromoIdx((p) => (p + 1) % promoSlides.length)}><ChevronRight /></button>
+          <motion.div className="relative" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.35 }}>
+            <img src={phone.images[0]} alt={phone.name} className="w-full h-[68vh] object-cover" />
+            <img src={phone.images[2]} alt={phone.name} className="absolute -bottom-12 -left-8 w-56 h-72 object-cover border border-white/50 shadow-2xl" />
+          </motion.div>
         </div>
       </section>
+      <EditorialLine text="Built without compromise." />
+      <section className="py-28 px-6 md:px-10 bg-white">
+        <div className="max-w-6xl mx-auto text-center">
+          <p className="uppercase text-xs tracking-[0.2em] text-black/50">Tablet Showcase Scene</p>
+          <h2 className="text-5xl md:text-7xl font-light tracking-tight mt-4">Creativity, Unbound.</h2>
+          <motion.img src={tablet.images[0]} alt={tablet.name} className="mx-auto mt-16 w-full max-w-5xl" initial={{ opacity: 0.2, y: 25 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.8 }} />
+        </div>
+      </section>
+      <section className="relative py-24 px-6 md:px-10">
+        <img src={desktop.images[1]} alt="Workspace" className="w-full h-[72vh] object-cover" />
+        <div className="absolute inset-0 bg-black/25" />
+        <div className="absolute inset-0 px-10 flex items-end pb-14">
+          <h3 className="text-white text-5xl md:text-7xl font-light tracking-tight">Where Focus Lives.</h3>
+        </div>
+      </section>
+      <ProductExplorer products={products} />
+      <CampaignShowcase />
     </>
   );
 }
 
-function ProductGrid({ list }: { list: Product[] }) {
-  const { addToCart, wishlist, toggleWishlist } = useCommerceStore();
-  return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-      {list.map((product) => (
-        <motion.article key={product.id} whileHover={{ y: -4 }} className="group border border-black/10 rounded-2xl p-4">
-          <Link to={`/products/${product.slug}`}>
-            <img src={product.images[0]} alt={product.name} loading="lazy" className="w-full h-56 object-cover rounded-xl transition-transform duration-500 group-hover:scale-[1.03]" />
-          </Link>
-          <div className="mt-4 flex items-start justify-between">
-            <div><h3 className="text-lg">{product.name}</h3><p className="text-sm text-black/60">${product.price}</p></div>
-            <button onClick={() => toggleWishlist(product.id)}><Heart className={`w-4 h-4 ${wishlist.includes(product.id) ? "fill-black" : ""}`} /></button>
-          </div>
-          <button className="mt-4 w-full py-2 bg-black text-white rounded-full text-sm" onClick={() => addToCart(product.id)}>Add to Cart</button>
-        </motion.article>
-      ))}
-    </div>
-  );
+function EditorialLine({ text }: { text: string }) {
+  return <section className="py-24 px-6"><motion.p className="max-w-5xl mx-auto text-center text-3xl md:text-6xl font-light tracking-tight text-black/85" initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.7 }}>{text}</motion.p></section>;
 }
 
-function ProductsPage() {
-  return <section className="px-6 py-16 max-w-[1200px] mx-auto"><h1 className="text-4xl font-light mb-8">All Products</h1><ProductGrid list={products} /></section>;
-}
-
-function CategoryPage({ category }: { category: Category }) {
-  const [brand, setBrand] = useState("all");
-  const [maxPrice, setMaxPrice] = useState(4000);
-  const filtered = products.filter((p) => p.category === category).filter((p) => (brand === "all" ? true : p.brand === brand)).filter((p) => p.price <= maxPrice);
-  const brands = ["all", ...new Set(products.filter((p) => p.category === category).map((p) => p.brand))];
+function ProductExplorer({ products }: { products: Product[] }) {
+  const categories: Category[] = ["laptops", "phones", "tablets", "desktops"];
+  const [activeCategory, setActiveCategory] = useState<Category>("laptops");
+  const items = useMemo(() => products.filter((p) => p.category === activeCategory), [activeCategory, products]);
+  const active = items[0];
+  if (!active) return null;
   return (
-    <section className="px-6 py-16 max-w-[1200px] mx-auto">
-      <h1 className="text-4xl font-light mb-8 capitalize">{category}</h1>
-      <div className="flex flex-wrap items-center gap-4 mb-8">
-        <select className="border rounded-full px-4 py-2" value={brand} onChange={(e) => setBrand(e.target.value)}>
-          {brands.map((b) => <option key={b} value={b}>{b}</option>)}
-        </select>
-        <label className="text-sm">Max Price: ${maxPrice}</label>
-        <input type="range" min={500} max={4000} step={100} value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value))} />
+    <section className="px-6 md:px-10 py-28 bg-[#151515] text-white">
+      <div className="max-w-[1320px] mx-auto">
+        <h3 className="text-4xl md:text-6xl font-light tracking-tight">Product Explorer Experience</h3>
+        <div className="flex gap-5 mt-8 overflow-x-auto pb-3">{categories.map((category) => <button key={category} onClick={() => setActiveCategory(category)} className={`text-sm uppercase tracking-[0.2em] pb-1 ${activeCategory === category ? "border-b border-white" : "text-white/55"}`}>{category}</button>)}</div>
+        <LayoutGroup><AnimatePresence mode="wait"><motion.div key={active.id} className="mt-10 grid lg:grid-cols-[1.15fr_0.85fr] gap-10 items-center" initial={{ opacity: 0.2, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }} transition={{ duration: 0.5 }}><motion.img layoutId="explorer-image" src={active.images[0]} alt={active.name} className="w-full h-[62vh] object-cover" /><div><p className="text-xs uppercase tracking-[0.2em] text-white/60">{active.category}</p><h4 className="text-4xl md:text-6xl font-light mt-4">{active.name}</h4><p className="mt-4 text-white/70">{active.description}</p><Link to={`/products/${active.slug}`} className="inline-block mt-8 px-6 py-2.5 border border-white/40 rounded-full text-sm">Discover</Link></div></motion.div></AnimatePresence></LayoutGroup>
       </div>
-      <ProductGrid list={filtered} />
     </section>
   );
 }
 
-function ProductDetailPage() {
+function CampaignShowcase() {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => { const timer = setInterval(() => setIdx((prev) => (prev + 1) % promoSlides.length), 4800); return () => clearInterval(timer); }, []);
+  return <section className="py-24 px-6 md:px-10 bg-[#0f1114] text-white"><div className="max-w-[1320px] mx-auto"><p className="uppercase text-xs tracking-[0.2em] text-white/60">Featured Collections</p><AnimatePresence mode="wait"><motion.div key={promoSlides[idx].title} initial={{ opacity: 0.2 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-6 grid lg:grid-cols-[1.2fr_0.8fr] gap-10 items-end"><img src={promoSlides[idx].image} alt={promoSlides[idx].title} className="w-full h-[62vh] object-cover" /><div><h3 className="text-4xl md:text-6xl font-light tracking-tight">{promoSlides[idx].title}</h3><p className="mt-4 text-white/70">{promoSlides[idx].subtitle}</p><div className="flex gap-2 mt-8">{promoSlides.map((slide, dotIdx) => <button key={slide.title} onClick={() => setIdx(dotIdx)} className={`h-1.5 rounded-full transition-all ${dotIdx === idx ? "w-10 bg-white" : "w-5 bg-white/35"}`} aria-label={`Go to ${slide.title}`} />)}</div></div></motion.div></AnimatePresence></div></section>;
+}
+
+function ProductRows({ list }: { list: Product[] }) {
+  const { addToCart, toggleWishlist, wishlist } = useCommerceStore();
+  return <div className="space-y-20">{list.map((product, idx) => <section key={product.id} className="max-w-[1320px] mx-auto px-6 md:px-10"><div className={`grid md:grid-cols-2 gap-12 items-center ${idx % 2 ? "" : "md:[&>*:first-child]:order-2"}`}><img src={product.images[idx % product.images.length]} alt={product.name} className="w-full h-[56vh] object-cover" /><div><h2 className="text-4xl md:text-6xl font-light tracking-tight">{product.name}</h2><p className="text-black/60 mt-4">{product.description}</p><div className="flex gap-3 mt-7"><Link to={`/products/${product.slug}`} className="px-6 py-2.5 rounded-full border border-black/30 text-sm">View</Link><button onClick={() => addToCart(product.id)} className="px-6 py-2.5 rounded-full bg-black text-white text-sm">Add to Cart</button><button onClick={() => toggleWishlist(product.id)} className="p-2 rounded-full border border-black/20" aria-label="Toggle wishlist"><Heart className={`w-4 h-4 ${wishlist.includes(product.id) ? "fill-black" : ""}`} /></button></div></div></div></section>)}</div>;
+}
+
+function ProductsPage({ products }: { products: Product[] }) { return <section className="py-20"><ProductRows list={products} /></section>; }
+function CategoryPage({ products, category }: { products: Product[]; category: Category }) { return <section className="py-20"><ProductRows list={products.filter((p) => p.category === category)} /></section>; }
+function ProductDetailPage({ products }: { products: Product[] }) {
   const { slug } = useParams();
   const product = products.find((p) => p.slug === slug);
-  const { addToCart } = useCommerceStore();
   const [active, setActive] = useState(0);
+  const { addToCart, toggleWishlist, wishlist } = useCommerceStore();
   if (!product) return <Navigate to="/products" replace />;
-  return (
-    <section className="px-6 py-16 max-w-[1200px] mx-auto">
-      <div className="grid md:grid-cols-2 gap-12">
-        <div>
-          <motion.img key={active} src={product.images[active]} alt={product.name} className="w-full h-[460px] object-cover rounded-2xl" initial={{ opacity: 0.3 }} animate={{ opacity: 1 }} />
-          <div className="mt-4 flex gap-3">{product.images.map((img, i) => <button key={img} onClick={() => setActive(i)}><img src={img} alt="" className={`w-20 h-16 object-cover rounded-lg ${i === active ? "ring-2 ring-black" : ""}`} /></button>)}</div>
-        </div>
-        <div>
-          <motion.h1 initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-5xl font-light">{product.name}</motion.h1>
-          <p className="text-2xl mt-4">${product.price}</p>
-          <p className="mt-4 text-black/65">{product.description}</p>
-          <ul className="mt-6 space-y-2 text-sm">{product.specs.map((s) => <li key={s}>• {s}</li>)}</ul>
-          <button className="mt-8 px-8 py-3 rounded-full bg-black text-white" onClick={() => addToCart(product.id)}>Add to Cart</button>
-        </div>
-      </div>
-      <div className="mt-20 grid md:grid-cols-3 gap-8">
-        {product.highlights.map((h) => <motion.div key={h} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="p-6 border border-black/10 rounded-2xl">{h}</motion.div>)}
-      </div>
-    </section>
-  );
+  return <section className="px-6 md:px-10 py-20 max-w-[1320px] mx-auto"><h1 className="text-5xl md:text-8xl font-light tracking-tight">{product.name}</h1><p className="mt-5 max-w-2xl text-black/60">{product.description}</p><motion.img key={product.images[active]} src={product.images[active]} alt={product.name} className="w-full mt-12 h-[66vh] object-cover" initial={{ opacity: 0.2 }} animate={{ opacity: 1 }} /><div className="flex gap-4 mt-5">{product.images.map((_, i) => <button key={i} onClick={() => setActive(i)} className={`text-xs uppercase tracking-[0.2em] ${active === i ? "text-black" : "text-black/45"}`}>Frame {i + 1}</button>)}</div><div className="grid md:grid-cols-2 gap-10 mt-14"><div><p className="text-3xl font-light">${product.price}</p><div className="flex gap-3 mt-6"><button onClick={() => addToCart(product.id)} className="px-7 py-3 rounded-full bg-black text-white text-sm">Add to Cart</button><button onClick={() => toggleWishlist(product.id)} className="px-6 py-3 rounded-full border border-black/25 text-sm">{wishlist.includes(product.id) ? "Saved" : "Save"}</button></div></div><ul className="space-y-2 text-black/70">{product.specs.map((spec) => <li key={spec}>{spec}</li>)}</ul></div></section>;
+}
+function CartPage({ products }: { products: Product[] }) { const { cart, updateQuantity, removeFromCart } = useCommerceStore(); const rows = cart.map((item) => ({ ...item, product: products.find((p) => p.id === item.productId)! })).filter((i) => i.product); const total = rows.reduce((sum, row) => sum + row.product.price * row.quantity, 0); return <section className="max-w-4xl mx-auto px-6 py-20"><h1 className="text-5xl font-light">Cart</h1>{rows.map((row) => <div key={row.productId} className="py-6 border-b border-black/10 flex justify-between items-center gap-4"><p>{row.product.name}</p><div className="flex items-center gap-3"><button onClick={() => updateQuantity(row.productId, row.quantity - 1)}>-</button><span>{row.quantity}</span><button onClick={() => updateQuantity(row.productId, row.quantity + 1)}>+</button><button onClick={() => removeFromCart(row.productId)}>Remove</button></div></div>)}<p className="mt-10 text-2xl">Total ${total}</p></section>; }
+function WishlistPage({ products }: { products: Product[] }) { const { wishlist } = useCommerceStore(); return <section className="py-20"><ProductRows list={products.filter((p) => wishlist.includes(p.id))} /></section>; }
+function SearchPage({ products }: { products: Product[] }) { const navigate = useNavigate(); const { query, setQuery } = useCommerceStore(); const [selected, setSelected] = useState(0); const filtered = useMemo(() => products.filter((p) => `${p.name} ${p.brand} ${p.category} ${p.tagline}`.toLowerCase().includes(query.toLowerCase())), [products, query]); useEffect(() => setSelected(0), [query]); return <section className="py-20 px-6 md:px-10 max-w-5xl mx-auto"><h1 className="text-5xl md:text-7xl font-light tracking-tight">Search</h1><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "ArrowDown") setSelected((prev) => Math.min(prev + 1, filtered.length - 1)); if (e.key === "ArrowUp") setSelected((prev) => Math.max(prev - 1, 0)); if (e.key === "Enter" && filtered[selected]) navigate(`/products/${filtered[selected].slug}`); }} placeholder="Search products" className="w-full mt-8 border-b border-black/25 pb-4 text-2xl bg-transparent outline-none" /><div className="mt-10 space-y-3">{filtered.map((product, i) => <Link key={product.id} to={`/products/${product.slug}`} className={`block p-4 transition-colors ${selected === i ? "bg-black text-white" : "bg-white"}`}><p className="text-xl font-light">{product.name}</p><p className={`text-sm ${selected === i ? "text-white/70" : "text-black/60"}`}>{product.tagline}</p></Link>)}</div></section>; }
+function TextPage({ title, body }: { title: string; body: string }) { return <section className="px-6 py-28 max-w-4xl mx-auto"><h1 className="text-5xl md:text-7xl font-light tracking-tight">{title}</h1><p className="mt-8 text-lg text-black/65 max-w-2xl">{body}</p></section>; }
+
+const adminNav = ["Dashboard", "Products", "Orders", "Customers", "Analytics", "Machine Learning", "Settings"];
+function AdminLayout({ title, children, commerce }: { title: string; children: ReactNode; commerce: CommerceData }) {
+  return <section className="min-h-[80vh] grid lg:grid-cols-[260px_1fr] bg-[#0f1114] text-white"><aside className="border-r border-white/10 p-8"><p className="text-xs uppercase tracking-[0.2em] text-white/60">Admin {commerce.mode === "supabase" ? "Live" : "Fallback"}</p><div className="mt-7 space-y-3">{adminNav.map((item) => <p key={item} className="text-white/75 text-sm">{item}</p>)}</div></aside><div className="p-8 md:p-12"><h1 className="text-4xl font-light tracking-tight">{title}</h1>{commerce.error && <p className="mt-2 text-sm text-red-300">{commerce.error}</p>}<div className="mt-8">{children}</div></div></section>;
 }
 
-function CartPage() {
-  const { cart, updateQuantity, removeFromCart } = useCommerceStore();
-  const rows = cart.map((item) => ({ ...item, product: products.find((p) => p.id === item.productId)! })).filter((i) => i.product);
-  const total = rows.reduce((sum, row) => sum + row.product.price * row.quantity, 0);
+function AdminDashboard({ commerce }: { commerce: CommerceData }) {
+  return <AdminLayout title="Dashboard" commerce={commerce}><div className="grid md:grid-cols-3 gap-4">{[{ label: "Revenue", value: `$${commerce.stats.revenue.toLocaleString()}` }, { label: "Orders", value: commerce.stats.orders.toLocaleString() }, { label: "Customers", value: commerce.stats.customers.toLocaleString() }].map((kpi) => <div key={kpi.label} className="bg-white/5 border border-white/10 p-5"><p className="text-white/60 text-xs uppercase">{kpi.label}</p><p className="text-3xl font-light mt-2">{kpi.value}</p></div>)}</div></AdminLayout>;
+}
+
+function AdminProductsPage({ commerce }: { commerce: CommerceData }) {
+  const [form, setForm] = useState({ name: "", slug: "", category: "laptops", brand: "TechElite", price: "999", description: "", tagline: "", featured: false, images: "", specs: "", highlights: "" });
   return (
-    <section className="px-6 py-16 max-w-[900px] mx-auto">
-      <h1 className="text-4xl font-light mb-8">Cart</h1>
-      <div className="space-y-4">
-        {rows.map((row) => (
-          <motion.div key={row.productId} layout className="p-4 border border-black/10 rounded-xl flex items-center justify-between gap-4">
-            <div><p>{row.product.name}</p><p className="text-sm text-black/60">${row.product.price}</p></div>
-            <div className="flex items-center gap-2">
-              <button className="px-2 border" onClick={() => updateQuantity(row.productId, row.quantity - 1)}>-</button>
-              <span>{row.quantity}</span>
-              <button className="px-2 border" onClick={() => updateQuantity(row.productId, row.quantity + 1)}>+</button>
-              <button className="ml-3 text-sm" onClick={() => removeFromCart(row.productId)}>Remove</button>
+    <AdminLayout title="Products" commerce={commerce}>
+      <form className="grid md:grid-cols-2 gap-3 bg-white/5 border border-white/10 p-4" onSubmit={async (e) => {
+        e.preventDefault();
+        await commerce.createProduct({ name: form.name, slug: form.slug, category: normalizeCategory(form.category), brand: form.brand, price: Number(form.price), description: form.description, tagline: form.tagline, featured: form.featured, images: form.images.split(",").map((v) => v.trim()).filter(Boolean), specs: form.specs.split(",").map((v) => v.trim()).filter(Boolean), highlights: form.highlights.split(",").map((v) => v.trim()).filter(Boolean) });
+        setForm({ name: "", slug: "", category: "laptops", brand: "TechElite", price: "999", description: "", tagline: "", featured: false, images: "", specs: "", highlights: "" });
+      }}>
+        <input className="bg-white/10 p-2" placeholder="Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} required />
+        <input className="bg-white/10 p-2" placeholder="Slug" value={form.slug} onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))} required />
+        <input className="bg-white/10 p-2" placeholder="Category" value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} />
+        <input className="bg-white/10 p-2" placeholder="Price" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
+        <input className="bg-white/10 p-2 md:col-span-2" placeholder="Description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
+        <input className="bg-white/10 p-2 md:col-span-2" placeholder="Images (comma-separated URLs)" value={form.images} onChange={(e) => setForm((p) => ({ ...p, images: e.target.value }))} />
+        <input className="bg-white/10 p-2 md:col-span-2" placeholder="Specs (comma-separated)" value={form.specs} onChange={(e) => setForm((p) => ({ ...p, specs: e.target.value }))} />
+        <input className="bg-white/10 p-2 md:col-span-2" placeholder="Highlights (comma-separated)" value={form.highlights} onChange={(e) => setForm((p) => ({ ...p, highlights: e.target.value }))} />
+        <button className="bg-white text-black py-2 text-sm">Create Product</button>
+      </form>
+      <div className="mt-6 space-y-3">
+        {commerce.products.map((item) => (
+          <div key={item.id} className="bg-white/5 border border-white/10 p-4 flex flex-wrap gap-3 items-center justify-between">
+            <div><p>{item.name}</p><p className="text-sm text-white/60">{item.category} • ${item.price}</p></div>
+            <div className="flex gap-2">
+              <button className="px-3 py-1 border border-white/25 text-sm" onClick={() => commerce.updateProduct(item.id, { featured: !item.featured })}>{item.featured ? "Unfeature" : "Feature"}</button>
+              <button className="px-3 py-1 border border-red-300/50 text-sm text-red-200" onClick={() => commerce.deleteProduct(item.id)}>Delete</button>
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
-      <p className="mt-8 text-xl">Total: ${total}</p>
-    </section>
+    </AdminLayout>
   );
 }
 
-function WishlistPage() {
-  const { wishlist } = useCommerceStore();
-  return <section className="px-6 py-16 max-w-[1200px] mx-auto"><h1 className="text-4xl font-light mb-8">Wishlist</h1><ProductGrid list={products.filter((p) => wishlist.includes(p.id))} /></section>;
+function AdminOrdersPage({ commerce }: { commerce: CommerceData }) {
+  const statuses: OrderRecord["status"][] = ["pending", "processing", "fulfilled", "cancelled"];
+  return <AdminLayout title="Orders" commerce={commerce}><div className="space-y-3">{commerce.orders.map((order) => <div key={order.id} className="bg-white/5 border border-white/10 p-4 flex flex-wrap items-center justify-between gap-3"><div><p>{order.id} • {order.customer_name}</p><p className="text-sm text-white/60">{order.customer_email} • ${order.total_amount}</p></div><select className="bg-white/10 p-2" value={order.status} onChange={(e) => commerce.updateOrder(order.id, { status: e.target.value as OrderRecord["status"] })}>{statuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>)}</div></AdminLayout>;
 }
 
-function SearchPage() {
-  const { query, setQuery } = useCommerceStore();
-  const filtered = useMemo(() => products.filter((p) => `${p.name} ${p.brand} ${p.category}`.toLowerCase().includes(query.toLowerCase())), [query]);
-  return (
-    <section className="px-6 py-16 max-w-[1200px] mx-auto">
-      <h1 className="text-4xl font-light mb-8">Search</h1>
-      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products, brands, categories..." className="w-full mb-8 border border-black/20 rounded-full px-5 py-3" />
-      <motion.div layout><ProductGrid list={filtered} /></motion.div>
-    </section>
-  );
+function AdminCustomersPage({ commerce }: { commerce: CommerceData }) {
+  return <AdminLayout title="Customers" commerce={commerce}><div className="space-y-3">{commerce.customers.map((customer) => <CustomerRow key={customer.id} customer={customer} onSave={(input) => commerce.updateCustomer(customer.id, input)} />)}</div></AdminLayout>;
 }
 
-function TextPage({ title, body }: { title: string; body: string }) {
-  return <section className="px-6 py-24 max-w-3xl mx-auto"><h1 className="text-5xl font-light">{title}</h1><p className="mt-6 text-lg text-black/70">{body}</p></section>;
+function CustomerRow({ customer, onSave }: { customer: CustomerRecord; onSave: (input: Partial<CustomerRecord>) => Promise<{ ok: boolean; error?: string }>; }) {
+  const [spend, setSpend] = useState(String(customer.total_spend));
+  const [orders, setOrders] = useState(String(customer.total_orders));
+  return <div className="bg-white/5 border border-white/10 p-4"><p>{customer.full_name}</p><p className="text-sm text-white/60">{customer.email}</p><div className="mt-3 flex gap-2"><input className="bg-white/10 p-2 text-sm" value={orders} onChange={(e) => setOrders(e.target.value)} /><input className="bg-white/10 p-2 text-sm" value={spend} onChange={(e) => setSpend(e.target.value)} /><button className="px-3 py-1 border border-white/30 text-sm" onClick={() => onSave({ total_orders: Number(orders), total_spend: Number(spend) })}>Save</button></div></div>;
+}
+
+function AdminAnalyticsPage({ commerce }: { commerce: CommerceData }) {
+  const data = commerce.orders.slice(0, 8).map((order) => ({ month: new Date(order.created_at).toLocaleString("en-US", { month: "short" }), revenue: order.total_amount }));
+  return <AdminLayout title="Analytics" commerce={commerce}><div className="h-80 bg-white/5 p-4 border border-white/10"><ResponsiveContainer width="100%" height="100%"><AreaChart data={data}><defs><linearGradient id="r" x1="0" x2="0" y1="0" y2="1"><stop offset="5%" stopColor="#d7e2f7" stopOpacity={0.7} /><stop offset="95%" stopColor="#d7e2f7" stopOpacity={0} /></linearGradient></defs><CartesianGrid stroke="rgba(255,255,255,0.12)" /><XAxis dataKey="month" stroke="rgba(255,255,255,0.6)" /><YAxis stroke="rgba(255,255,255,0.6)" /><Tooltip /><Area type="monotone" dataKey="revenue" stroke="#d7e2f7" fill="url(#r)" /></AreaChart></ResponsiveContainer></div></AdminLayout>;
+}
+
+function AdminMLPage({ commerce }: { commerce: CommerceData }) {
+  const [insights, setInsights] = useState<{ id: string; segment: string; repeatPurchaseConfidence: number }[]>([]);
+  useEffect(() => {
+    let active = true;
+    const run = async () => {
+      await tf.ready();
+      const x = tf.tensor2d(commerce.customers.map((c) => [c.total_orders, c.total_spend / 100, c.last_purchase_at ? (Date.now() - new Date(c.last_purchase_at).getTime()) / 86400000 : 300]));
+      const w = tf.tensor2d([[0.35], [0.28], [-0.32]]);
+      const s = tf.sigmoid(x.matMul(w)).mul(100);
+      const conf = Array.from(await s.data());
+      x.dispose();
+      w.dispose();
+      s.dispose();
+      if (!active) return;
+      setInsights(commerce.customers.map((c, i) => ({ id: c.id, repeatPurchaseConfidence: Math.round(conf[i] ?? 0), segment: (c.last_purchase_at && (Date.now() - new Date(c.last_purchase_at).getTime()) / 86400000 > 120) ? "At Risk Customer" : c.total_spend > 3500 ? "VIP Customer" : "Regular Customer" })));
+    };
+    if (commerce.customers.length) void run();
+    return () => { active = false; };
+  }, [commerce.customers]);
+  const vip = insights.filter((i) => i.segment === "VIP Customer").length;
+  const atRisk = insights.filter((i) => i.segment === "At Risk Customer").length;
+  const repeat = insights.filter((i) => i.repeatPurchaseConfidence > 75).length;
+  return <AdminLayout title="Machine Learning" commerce={commerce}><div className="grid md:grid-cols-4 gap-4">{[{ k: "VIP Customers", v: vip }, { k: "Predicted Repeat Buyers", v: repeat }, { k: "At Risk Customers", v: atRisk }, { k: "Best Campaign Opportunity", v: "Creator Collection" }].map((box) => <div key={box.k} className="bg-white/5 border border-white/10 p-4"><p className="text-xs text-white/60 uppercase">{box.k}</p><p className="text-3xl mt-3 font-light">{box.v}</p></div>)}</div><div className="mt-6 bg-white/5 border border-white/10 p-5"><p className="text-white/70 mb-3">Customer Classification</p>{insights.map((i) => <div key={i.id} className="flex items-center justify-between py-2 border-b border-white/10"><p>{i.id}</p><p>{i.segment}</p><p>{i.repeatPurchaseConfidence}%</p></div>)}</div></AdminLayout>;
 }
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <CommerceProvider>
-        <AppShell />
-      </CommerceProvider>
-    </BrowserRouter>
-  );
+  return <BrowserRouter><CommerceProvider><AppShell /></CommerceProvider></BrowserRouter>;
 }

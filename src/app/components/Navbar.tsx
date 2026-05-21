@@ -16,8 +16,10 @@ const links = [
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const { cartCount, wishlist, setQuery } = useCommerceStore();
+  const [cartOpen, setCartOpen] = useState(false);
+  const { cartCount, wishlist, setQuery, cart, removeFromCart } = useCommerceStore();
   const navigate = useNavigate();
+  const preview = cart.slice(0, 3);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -44,7 +46,7 @@ export function Navbar() {
         <div className="flex items-center gap-4">
           <button onClick={() => { setQuery(""); navigate("/search"); }} aria-label="Search"><Search className="w-4 h-4" /></button>
           <NavLink to="/wishlist" className="relative" aria-label="Wishlist"><Heart className="w-4 h-4" />{wishlist.length > 0 && <span className="absolute -top-2 -right-2 text-[10px] px-1 rounded-full bg-black text-white">{wishlist.length}</span>}</NavLink>
-          <NavLink to="/cart" className="relative" aria-label="Cart"><ShoppingBag className="w-4 h-4" />{cartCount > 0 && <span className="absolute -top-2 -right-2 text-[10px] px-1 rounded-full bg-black text-white">{cartCount}</span>}</NavLink>
+          <button className="relative" aria-label="Cart preview" onClick={() => setCartOpen(true)}><ShoppingBag className="w-4 h-4" />{cartCount > 0 && <span className="absolute -top-2 -right-2 text-[10px] px-1 rounded-full bg-black text-white">{cartCount}</span>}</button>
           <button className="md:hidden" onClick={() => setOpen(true)} aria-label="Open menu"><Menu className="w-4 h-4" /></button>
         </div>
       </div>
@@ -61,6 +63,27 @@ export function Navbar() {
                 ))}
               </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {cartOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setCartOpen(false)}>
+            <motion.div initial={{ x: 300 }} animate={{ x: 0 }} exit={{ x: 300 }} transition={{ duration: 0.3 }} className="absolute right-0 top-0 h-full w-[360px] bg-white p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <p className="text-sm uppercase tracking-[0.2em] text-black/50">Cart</p>
+                <button onClick={() => setCartOpen(false)}><X className="w-4 h-4" /></button>
+              </div>
+              <div className="mt-6 space-y-4">
+                {preview.map((item) => (
+                  <div key={item.productId} className="border-b border-black/10 pb-3 flex items-center justify-between">
+                    <p className="text-sm">{item.productId}</p>
+                    <button className="text-xs text-black/50" onClick={() => removeFromCart(item.productId)}>Remove</button>
+                  </div>
+                ))}
+              </div>
+              <button className="mt-6 w-full rounded-full bg-black text-white py-2.5 text-sm" onClick={() => { setCartOpen(false); navigate("/cart"); }}>Open Cart</button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
