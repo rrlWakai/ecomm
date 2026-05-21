@@ -27,7 +27,7 @@ supabase.auth.onAuthStateChange(async () => {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={client}>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <RootApp />
       </BrowserRouter>
     </QueryClientProvider>

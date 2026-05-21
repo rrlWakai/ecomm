@@ -355,5 +355,11 @@ function AdminMLPage({ commerce }: { commerce: CommerceData }) {
 }
 
 export default function App() {
-  return <BrowserRouter><CommerceProvider><AppShell /></CommerceProvider></BrowserRouter>;
+  return (
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <CommerceProvider>
+        <AppShell />
+      </CommerceProvider>
+    </BrowserRouter>
+  );
 }
