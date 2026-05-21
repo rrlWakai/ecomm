@@ -158,9 +158,18 @@ function WishlistPage({ products }: { products: Product[] }) { const { wishlist 
 function SearchPage({ products }: { products: Product[] }) { const navigate = useNavigate(); const { query, setQuery } = useCommerceStore(); const [selected, setSelected] = useState(0); const filtered = useMemo(() => products.filter((p) => `${p.name} ${p.brand} ${p.category} ${p.tagline}`.toLowerCase().includes(query.toLowerCase())), [products, query]); useEffect(() => setSelected(0), [query]); return <section className="py-20 px-6 md:px-10 max-w-5xl mx-auto"><h1 className="text-5xl md:text-7xl font-light tracking-tight">Search</h1><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "ArrowDown") setSelected((prev) => Math.min(prev + 1, filtered.length - 1)); if (e.key === "ArrowUp") setSelected((prev) => Math.max(prev - 1, 0)); if (e.key === "Enter" && filtered[selected]) navigate(`/products/${filtered[selected].slug}`); }} placeholder="Search products" className="w-full mt-8 border-b border-black/25 pb-4 text-2xl bg-transparent outline-none" /><div className="mt-10 space-y-3">{filtered.map((product, i) => <Link key={product.id} to={`/products/${product.slug}`} className={`block p-4 transition-colors ${selected === i ? "bg-black text-white" : "bg-white"}`}><p className="text-xl font-light">{product.name}</p><p className={`text-sm ${selected === i ? "text-white/70" : "text-black/60"}`}>{product.tagline}</p></Link>)}</div></section>; }
 function TextPage({ title, body }: { title: string; body: string }) { return <section className="px-6 py-28 max-w-4xl mx-auto"><h1 className="text-5xl md:text-7xl font-light tracking-tight">{title}</h1><p className="mt-8 text-lg text-black/65 max-w-2xl">{body}</p></section>; }
 
-const adminNav = ["Dashboard", "Products", "Orders", "Customers", "Analytics", "Machine Learning", "Settings"];
+const adminNav = [
+  { label: "Dashboard", path: "/admin" },
+  { label: "Products", path: "/admin/products" },
+  { label: "Orders", path: "/admin/orders" },
+  { label: "Customers", path: "/admin/customers" },
+  { label: "Analytics", path: "/admin/analytics" },
+  { label: "Machine Learning", path: "/admin/machine-learning" }
+];
+
 function AdminLayout({ title, children, commerce }: { title: string; children: ReactNode; commerce: CommerceData }) {
-  return <section className="min-h-[80vh] grid lg:grid-cols-[260px_1fr] bg-[#0f1114] text-white"><aside className="border-r border-white/10 p-8"><p className="text-xs uppercase tracking-[0.2em] text-white/60">Admin {commerce.mode === "supabase" ? "Live" : "Fallback"}</p><div className="mt-7 space-y-3">{adminNav.map((item) => <p key={item} className="text-white/75 text-sm">{item}</p>)}</div></aside><div className="p-8 md:p-12"><h1 className="text-4xl font-light tracking-tight">{title}</h1>{commerce.error && <p className="mt-2 text-sm text-red-300">{commerce.error}</p>}<div className="mt-8">{children}</div></div></section>;
+  const location = useLocation();
+  return <section className="min-h-[80vh] grid lg:grid-cols-[260px_1fr] bg-[#0f1114] text-white"><aside className="border-r border-white/10 p-8"><p className="text-xs uppercase tracking-[0.2em] text-white/60">Admin {commerce.mode === "supabase" ? "Live" : "Fallback"}</p><div className="mt-7 space-y-1">{adminNav.map((item) => <Link key={item.path} to={item.path} className={`block text-sm px-3 py-2 border ${location.pathname === item.path ? "bg-white text-black border-white" : "text-white/75 border-white/10 hover:border-white/40"}`}>{item.label}</Link>)}</div></aside><div className="p-8 md:p-12"><h1 className="text-4xl font-light tracking-tight">{title}</h1>{commerce.error && <p className="mt-2 text-sm text-red-300">{commerce.error}</p>}{commerce.loading && <p className="mt-2 text-sm text-white/60">Syncing admin data from Supabase...</p>}<div className="mt-8">{children}</div></div></section>;
 }
 
 function AdminDashboard({ commerce }: { commerce: CommerceData }) {
@@ -169,30 +178,61 @@ function AdminDashboard({ commerce }: { commerce: CommerceData }) {
 
 function AdminProductsPage({ commerce }: { commerce: CommerceData }) {
   const [form, setForm] = useState({ name: "", slug: "", category: "laptops", brand: "TechElite", price: "999", description: "", tagline: "", featured: false, images: "", specs: "", highlights: "" });
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   return (
     <AdminLayout title="Products" commerce={commerce}>
       <form className="grid md:grid-cols-2 gap-3 bg-white/5 border border-white/10 p-4" onSubmit={async (e) => {
         e.preventDefault();
-        await commerce.createProduct({ name: form.name, slug: form.slug, category: normalizeCategory(form.category), brand: form.brand, price: Number(form.price), description: form.description, tagline: form.tagline, featured: form.featured, images: form.images.split(",").map((v) => v.trim()).filter(Boolean), specs: form.specs.split(",").map((v) => v.trim()).filter(Boolean), highlights: form.highlights.split(",").map((v) => v.trim()).filter(Boolean) });
+        setFeedback(null);
+        setError(null);
+        const createRes = await commerce.createProduct({ name: form.name, slug: form.slug, category: normalizeCategory(form.category), brand: form.brand, price: Number(form.price), description: form.description, tagline: form.tagline || form.name, featured: form.featured, images: form.images.split(",").map((v) => v.trim()).filter(Boolean), specs: form.specs.split(",").map((v) => v.trim()).filter(Boolean), highlights: form.highlights.split(",").map((v) => v.trim()).filter(Boolean) });
+        if (!createRes.ok) {
+          setError(createRes.error ?? "Failed to create product.");
+          return;
+        }
+        setFeedback("Product created.");
         setForm({ name: "", slug: "", category: "laptops", brand: "TechElite", price: "999", description: "", tagline: "", featured: false, images: "", specs: "", highlights: "" });
       }}>
         <input className="bg-white/10 p-2" placeholder="Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} required />
         <input className="bg-white/10 p-2" placeholder="Slug" value={form.slug} onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))} required />
         <input className="bg-white/10 p-2" placeholder="Category" value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} />
         <input className="bg-white/10 p-2" placeholder="Price" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
+        <input className="bg-white/10 p-2" placeholder="Brand" value={form.brand} onChange={(e) => setForm((p) => ({ ...p, brand: e.target.value }))} />
+        <input className="bg-white/10 p-2" placeholder="Tagline" value={form.tagline} onChange={(e) => setForm((p) => ({ ...p, tagline: e.target.value }))} />
         <input className="bg-white/10 p-2 md:col-span-2" placeholder="Description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
         <input className="bg-white/10 p-2 md:col-span-2" placeholder="Images (comma-separated URLs)" value={form.images} onChange={(e) => setForm((p) => ({ ...p, images: e.target.value }))} />
         <input className="bg-white/10 p-2 md:col-span-2" placeholder="Specs (comma-separated)" value={form.specs} onChange={(e) => setForm((p) => ({ ...p, specs: e.target.value }))} />
         <input className="bg-white/10 p-2 md:col-span-2" placeholder="Highlights (comma-separated)" value={form.highlights} onChange={(e) => setForm((p) => ({ ...p, highlights: e.target.value }))} />
         <button className="bg-white text-black py-2 text-sm">Create Product</button>
       </form>
+      {feedback && <p className="mt-3 text-sm text-emerald-300">{feedback}</p>}
+      {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
       <div className="mt-6 space-y-3">
         {commerce.products.map((item) => (
           <div key={item.id} className="bg-white/5 border border-white/10 p-4 flex flex-wrap gap-3 items-center justify-between">
             <div><p>{item.name}</p><p className="text-sm text-white/60">{item.category} • ${item.price}</p></div>
             <div className="flex gap-2">
-              <button className="px-3 py-1 border border-white/25 text-sm" onClick={() => commerce.updateProduct(item.id, { featured: !item.featured })}>{item.featured ? "Unfeature" : "Feature"}</button>
-              <button className="px-3 py-1 border border-red-300/50 text-sm text-red-200" onClick={() => commerce.deleteProduct(item.id)}>Delete</button>
+              <button className="px-3 py-1 border border-white/25 text-sm" onClick={async () => {
+                setFeedback(null);
+                setError(null);
+                const updateRes = await commerce.updateProduct(item.id, { featured: !item.featured });
+                if (!updateRes.ok) {
+                  setError(updateRes.error ?? "Failed to update product.");
+                  return;
+                }
+                setFeedback(`${item.name} updated.`);
+              }}>{item.featured ? "Unfeature" : "Feature"}</button>
+              <button className="px-3 py-1 border border-red-300/50 text-sm text-red-200" onClick={async () => {
+                setFeedback(null);
+                setError(null);
+                const deleteRes = await commerce.deleteProduct(item.id);
+                if (!deleteRes.ok) {
+                  setError(deleteRes.error ?? "Failed to delete product.");
+                  return;
+                }
+                setFeedback(`${item.name} deleted.`);
+              }}>Delete</button>
             </div>
           </div>
         ))}
@@ -203,7 +243,9 @@ function AdminProductsPage({ commerce }: { commerce: CommerceData }) {
 
 function AdminOrdersPage({ commerce }: { commerce: CommerceData }) {
   const statuses: OrderRecord["status"][] = ["pending", "processing", "fulfilled", "cancelled"];
-  return <AdminLayout title="Orders" commerce={commerce}><div className="space-y-3">{commerce.orders.map((order) => <div key={order.id} className="bg-white/5 border border-white/10 p-4 flex flex-wrap items-center justify-between gap-3"><div><p>{order.id} • {order.customer_name}</p><p className="text-sm text-white/60">{order.customer_email} • ${order.total_amount}</p></div><select className="bg-white/10 p-2" value={order.status} onChange={(e) => commerce.updateOrder(order.id, { status: e.target.value as OrderRecord["status"] })}>{statuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>)}</div></AdminLayout>;
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  return <AdminLayout title="Orders" commerce={commerce}>{message && <p className="mb-3 text-sm text-emerald-300">{message}</p>}{error && <p className="mb-3 text-sm text-red-300">{error}</p>}<div className="space-y-3">{commerce.orders.map((order) => <div key={order.id} className="bg-white/5 border border-white/10 p-4 flex flex-wrap items-center justify-between gap-3"><div><p>{order.id} • {order.customer_name}</p><p className="text-sm text-white/60">{order.customer_email} • ${order.total_amount}</p></div><select className="bg-white/10 p-2" value={order.status} onChange={async (e) => { setMessage(null); setError(null); const result = await commerce.updateOrder(order.id, { status: e.target.value as OrderRecord["status"] }); if (!result.ok) { setError(result.error ?? "Failed to update order."); return; } setMessage(`Order ${order.id} updated.`); }}>{statuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>)}</div></AdminLayout>;
 }
 
 function AdminCustomersPage({ commerce }: { commerce: CommerceData }) {
@@ -213,7 +255,9 @@ function AdminCustomersPage({ commerce }: { commerce: CommerceData }) {
 function CustomerRow({ customer, onSave }: { customer: CustomerRecord; onSave: (input: Partial<CustomerRecord>) => Promise<{ ok: boolean; error?: string }>; }) {
   const [spend, setSpend] = useState(String(customer.total_spend));
   const [orders, setOrders] = useState(String(customer.total_orders));
-  return <div className="bg-white/5 border border-white/10 p-4"><p>{customer.full_name}</p><p className="text-sm text-white/60">{customer.email}</p><div className="mt-3 flex gap-2"><input className="bg-white/10 p-2 text-sm" value={orders} onChange={(e) => setOrders(e.target.value)} /><input className="bg-white/10 p-2 text-sm" value={spend} onChange={(e) => setSpend(e.target.value)} /><button className="px-3 py-1 border border-white/30 text-sm" onClick={() => onSave({ total_orders: Number(orders), total_spend: Number(spend) })}>Save</button></div></div>;
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  return <div className="bg-white/5 border border-white/10 p-4"><p>{customer.full_name}</p><p className="text-sm text-white/60">{customer.email}</p><div className="mt-3 flex gap-2"><input className="bg-white/10 p-2 text-sm" value={orders} onChange={(e) => setOrders(e.target.value)} /><input className="bg-white/10 p-2 text-sm" value={spend} onChange={(e) => setSpend(e.target.value)} /><button className="px-3 py-1 border border-white/30 text-sm" onClick={async () => { setMessage(null); setError(null); const result = await onSave({ total_orders: Number(orders), total_spend: Number(spend) }); if (!result.ok) { setError(result.error ?? "Failed to update customer."); return; } setMessage("Saved."); }}>Save</button></div>{message && <p className="mt-2 text-xs text-emerald-300">{message}</p>}{error && <p className="mt-2 text-xs text-red-300">{error}</p>}</div>;
 }
 
 function AdminAnalyticsPage({ commerce }: { commerce: CommerceData }) {

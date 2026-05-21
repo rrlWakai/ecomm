@@ -7,6 +7,61 @@ type ProductInput = Omit<Product, "id"> & { id?: string };
 type OrderUpdateInput = Partial<Pick<OrderRecord, "status">>;
 type CustomerUpdateInput = Partial<Pick<CustomerRecord, "full_name" | "email" | "total_orders" | "total_spend" | "last_purchase_at">>;
 
+type RawProduct = Omit<Product, "price" | "specs" | "highlights" | "images" | "featured"> & {
+  price: number | string;
+  specs: unknown;
+  highlights: unknown;
+  images: unknown;
+  featured?: boolean | null;
+};
+
+type RawOrder = Omit<OrderRecord, "total_amount"> & { total_amount: number | string };
+type RawCustomer = Omit<CustomerRecord, "total_orders" | "total_spend"> & {
+  total_orders: number | string;
+  total_spend: number | string;
+};
+
+function toNumber(value: number | string | null | undefined) {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item ?? "")).map((item) => item.trim()).filter(Boolean);
+}
+
+function normalizeProductRow(row: RawProduct): Product {
+  return {
+    ...row,
+    category: normalizeCategory(row.category),
+    price: toNumber(row.price),
+    specs: toStringArray(row.specs),
+    highlights: toStringArray(row.highlights),
+    images: toStringArray(row.images),
+    featured: Boolean(row.featured)
+  };
+}
+
+function normalizeOrderRow(row: RawOrder): OrderRecord {
+  return {
+    ...row,
+    total_amount: toNumber(row.total_amount)
+  };
+}
+
+function normalizeCustomerRow(row: RawCustomer): CustomerRecord {
+  return {
+    ...row,
+    total_orders: Math.max(0, Math.floor(toNumber(row.total_orders))),
+    total_spend: toNumber(row.total_spend)
+  };
+}
+
 const fallbackOrders: OrderRecord[] = [
   { id: "ord-1001", customer_id: "c-01", customer_name: "Avery Stone", customer_email: "avery@example.com", status: "processing", total_amount: 2499, created_at: "2026-05-19T11:00:00Z" },
   { id: "ord-1002", customer_id: "c-02", customer_name: "Mila Hart", customer_email: "mila@example.com", status: "pending", total_amount: 1099, created_at: "2026-05-20T08:30:00Z" }
@@ -52,9 +107,9 @@ export function useSupabaseCommerce() {
       return;
     }
 
-    setProducts((productsRes.data as Product[]) ?? []);
-    setOrders((ordersRes.data as OrderRecord[]) ?? []);
-    setCustomers((customersRes.data as CustomerRecord[]) ?? []);
+    setProducts(((productsRes.data as RawProduct[]) ?? []).map(normalizeProductRow));
+    setOrders(((ordersRes.data as RawOrder[]) ?? []).map(normalizeOrderRow));
+    setCustomers(((customersRes.data as RawCustomer[]) ?? []).map(normalizeCustomerRow));
     setLoading(false);
   }, []);
 
