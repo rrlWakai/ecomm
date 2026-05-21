@@ -16,10 +16,11 @@ type CommerceData = ReturnType<typeof useSupabaseCommerce>;
 function AppShell() {
   const location = useLocation();
   const commerce = useSupabaseCommerce();
+  const isAdminRoute = location.pathname.startsWith("/admin");
   return (
     <div className="min-h-screen bg-[#f4f4f2] text-[#121212]">
-      <Navbar />
-      <main className="pt-16">
+      {!isAdminRoute && <Navbar />}
+      <main className={isAdminRoute ? "" : "pt-16"}>
         <AnimatePresence mode="wait">
           <motion.div key={location.pathname} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
             <Routes>
@@ -47,7 +48,7 @@ function AppShell() {
           </motion.div>
         </AnimatePresence>
       </main>
-      <Footer />
+      {!isAdminRoute && <Footer />}
     </div>
   );
 }
@@ -167,13 +168,58 @@ const adminNav = [
   { label: "Machine Learning", path: "/admin/machine-learning" }
 ];
 
+function statusTone(status: string) {
+  if (status === "fulfilled" || status === "success") return "bg-[#dcfce7] text-[#16a34a]";
+  if (status === "processing" || status === "warning") return "bg-[#fef9c3] text-[#ca8a04]";
+  if (status === "cancelled" || status === "danger") return "bg-[#fee2e2] text-[#dc2626]";
+  return "bg-[#f3f4f6] text-[#374151]";
+}
+
 function AdminLayout({ title, children, commerce }: { title: string; children: ReactNode; commerce: CommerceData }) {
   const location = useLocation();
-  return <section className="min-h-[80vh] grid lg:grid-cols-[260px_1fr] bg-[#0f1114] text-white"><aside className="border-r border-white/10 p-8"><p className="text-xs uppercase tracking-[0.2em] text-white/60">Admin {commerce.mode === "supabase" ? "Live" : "Fallback"}</p><div className="mt-7 space-y-1">{adminNav.map((item) => <Link key={item.path} to={item.path} className={`block text-sm px-3 py-2 border ${location.pathname === item.path ? "bg-white text-black border-white" : "text-white/75 border-white/10 hover:border-white/40"}`}>{item.label}</Link>)}</div></aside><div className="p-8 md:p-12"><h1 className="text-4xl font-light tracking-tight">{title}</h1>{commerce.error && <p className="mt-2 text-sm text-red-300">{commerce.error}</p>}{commerce.loading && <p className="mt-2 text-sm text-white/60">Syncing admin data from Supabase...</p>}<div className="mt-8">{children}</div></div></section>;
+  return (
+    <section className="min-h-screen grid lg:grid-cols-[220px_1fr] bg-[#f8f9fa] text-[#111827] font-sans" style={{ fontFamily: "Inter, system-ui, -apple-system, sans-serif" }}>
+      <aside className="bg-[#f4f5f7] min-h-screen px-5 py-6 border-r border-[#e5e7eb]">
+        <p className="text-lg font-semibold text-[#111827]">Admin</p>
+        <p className="mt-4 text-[10px] uppercase tracking-[0.08em] text-[#9ca3af]">Admin {commerce.mode === "supabase" ? "Live" : "Fallback"}</p>
+        <div className="mt-4 space-y-1">
+          {adminNav.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`block text-sm px-3 py-2 rounded-md font-medium ${location.pathname === item.path ? "bg-[#e5e7eb] text-[#111827]" : "text-[#6b7280] hover:bg-[#eceef1]"}`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </aside>
+      <div className="p-8 md:p-10">
+        <header className="pt-8 mb-6">
+          <h1 className="text-2xl font-bold text-[#111827]">{title}</h1>
+          <p className="mt-1 text-sm text-[#6b7280]">Manage your {title.toLowerCase()} data and workflows.</p>
+          {commerce.error && <p className="mt-2 text-sm text-[#dc2626]">{commerce.error}</p>}
+          {commerce.loading && <p className="mt-2 text-sm text-[#6b7280]">Syncing admin data from Supabase...</p>}
+        </header>
+        <div className="space-y-6">{children}</div>
+      </div>
+    </section>
+  );
 }
 
 function AdminDashboard({ commerce }: { commerce: CommerceData }) {
-  return <AdminLayout title="Dashboard" commerce={commerce}><div className="grid md:grid-cols-3 gap-4">{[{ label: "Revenue", value: `$${commerce.stats.revenue.toLocaleString()}` }, { label: "Orders", value: commerce.stats.orders.toLocaleString() }, { label: "Customers", value: commerce.stats.customers.toLocaleString() }].map((kpi) => <div key={kpi.label} className="bg-white/5 border border-white/10 p-5"><p className="text-white/60 text-xs uppercase">{kpi.label}</p><p className="text-3xl font-light mt-2">{kpi.value}</p></div>)}</div></AdminLayout>;
+  return (
+    <AdminLayout title="Dashboard" commerce={commerce}>
+      <div className="grid [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] gap-4">
+        {[{ label: "Revenue", value: `$${commerce.stats.revenue.toLocaleString()}` }, { label: "Orders", value: commerce.stats.orders.toLocaleString() }, { label: "Customers", value: commerce.stats.customers.toLocaleString() }].map((kpi) => (
+          <div key={kpi.label} className="bg-white rounded-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-5">
+            <p className="text-[#6b7280] text-[11px] uppercase tracking-[0.05em]">{kpi.label}</p>
+            <p className="text-[28px] font-bold mt-2 text-[#111827]">{kpi.value}</p>
+          </div>
+        ))}
+      </div>
+    </AdminLayout>
+  );
 }
 
 function AdminProductsPage({ commerce }: { commerce: CommerceData }) {
@@ -182,7 +228,7 @@ function AdminProductsPage({ commerce }: { commerce: CommerceData }) {
   const [error, setError] = useState<string | null>(null);
   return (
     <AdminLayout title="Products" commerce={commerce}>
-      <form className="grid md:grid-cols-2 gap-3 bg-white/5 border border-white/10 p-4" onSubmit={async (e) => {
+      <form className="grid md:grid-cols-2 gap-3 bg-white rounded-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-5" onSubmit={async (e) => {
         e.preventDefault();
         setFeedback(null);
         setError(null);
@@ -194,26 +240,41 @@ function AdminProductsPage({ commerce }: { commerce: CommerceData }) {
         setFeedback("Product created.");
         setForm({ name: "", slug: "", category: "laptops", brand: "TechElite", price: "999", description: "", tagline: "", featured: false, images: "", specs: "", highlights: "" });
       }}>
-        <input className="bg-white/10 p-2" placeholder="Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} required />
-        <input className="bg-white/10 p-2" placeholder="Slug" value={form.slug} onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))} required />
-        <input className="bg-white/10 p-2" placeholder="Category" value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} />
-        <input className="bg-white/10 p-2" placeholder="Price" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
-        <input className="bg-white/10 p-2" placeholder="Brand" value={form.brand} onChange={(e) => setForm((p) => ({ ...p, brand: e.target.value }))} />
-        <input className="bg-white/10 p-2" placeholder="Tagline" value={form.tagline} onChange={(e) => setForm((p) => ({ ...p, tagline: e.target.value }))} />
-        <input className="bg-white/10 p-2 md:col-span-2" placeholder="Description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
-        <input className="bg-white/10 p-2 md:col-span-2" placeholder="Images (comma-separated URLs)" value={form.images} onChange={(e) => setForm((p) => ({ ...p, images: e.target.value }))} />
-        <input className="bg-white/10 p-2 md:col-span-2" placeholder="Specs (comma-separated)" value={form.specs} onChange={(e) => setForm((p) => ({ ...p, specs: e.target.value }))} />
-        <input className="bg-white/10 p-2 md:col-span-2" placeholder="Highlights (comma-separated)" value={form.highlights} onChange={(e) => setForm((p) => ({ ...p, highlights: e.target.value }))} />
-        <button className="bg-white text-black py-2 text-sm">Create Product</button>
+        <input className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" placeholder="Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} required />
+        <input className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" placeholder="Slug" value={form.slug} onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))} required />
+        <input className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" placeholder="Category" value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} />
+        <input className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" placeholder="Price" value={form.price} onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))} />
+        <input className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" placeholder="Brand" value={form.brand} onChange={(e) => setForm((p) => ({ ...p, brand: e.target.value }))} />
+        <input className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" placeholder="Tagline" value={form.tagline} onChange={(e) => setForm((p) => ({ ...p, tagline: e.target.value }))} />
+        <input className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm md:col-span-2 focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" placeholder="Description" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
+        <input className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm md:col-span-2 focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" placeholder="Images (comma-separated URLs)" value={form.images} onChange={(e) => setForm((p) => ({ ...p, images: e.target.value }))} />
+        <input className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm md:col-span-2 focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" placeholder="Specs (comma-separated)" value={form.specs} onChange={(e) => setForm((p) => ({ ...p, specs: e.target.value }))} />
+        <input className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm md:col-span-2 focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" placeholder="Highlights (comma-separated)" value={form.highlights} onChange={(e) => setForm((p) => ({ ...p, highlights: e.target.value }))} />
+        <button className="bg-[#111827] hover:bg-[#374151] text-white py-2 px-4 text-sm rounded-lg">Create Product</button>
       </form>
-      {feedback && <p className="mt-3 text-sm text-emerald-300">{feedback}</p>}
-      {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
-      <div className="mt-6 space-y-3">
+      {feedback && <p className="text-sm text-[#16a34a]">{feedback}</p>}
+      {error && <p className="text-sm text-[#dc2626]">{error}</p>}
+      <div className="bg-white rounded-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-[#f9fafb]">
+            <tr>
+              <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Product</th>
+              <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Category</th>
+              <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Price</th>
+              <th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Status</th>
+              <th className="text-right px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
         {commerce.products.map((item) => (
-          <div key={item.id} className="bg-white/5 border border-white/10 p-4 flex flex-wrap gap-3 items-center justify-between">
-            <div><p>{item.name}</p><p className="text-sm text-white/60">{item.category} • ${item.price}</p></div>
-            <div className="flex gap-2">
-              <button className="px-3 py-1 border border-white/25 text-sm" onClick={async () => {
+          <tr key={item.id} className="border-t border-[#f3f4f6] hover:bg-[#f9fafb]">
+            <td className="px-4 py-3"><p className="font-medium">{item.name}</p></td>
+            <td className="px-4 py-3 text-sm text-[#6b7280]">{item.category}</td>
+            <td className="px-4 py-3 text-sm">${item.price}</td>
+            <td className="px-4 py-3"><span className={`inline-flex rounded-full px-[10px] py-[2px] text-xs ${item.featured ? "bg-[#dcfce7] text-[#16a34a]" : "bg-[#f3f4f6] text-[#374151]"}`}>{item.featured ? "Featured" : "Standard"}</span></td>
+            <td className="px-4 py-3">
+              <div className="flex gap-2 justify-end">
+              <button className="px-3 py-1 border border-[#e5e7eb] rounded-md text-sm text-[#374151]" onClick={async () => {
                 setFeedback(null);
                 setError(null);
                 const updateRes = await commerce.updateProduct(item.id, { featured: !item.featured });
@@ -223,7 +284,7 @@ function AdminProductsPage({ commerce }: { commerce: CommerceData }) {
                 }
                 setFeedback(`${item.name} updated.`);
               }}>{item.featured ? "Unfeature" : "Feature"}</button>
-              <button className="px-3 py-1 border border-red-300/50 text-sm text-red-200" onClick={async () => {
+              <button className="px-3 py-1 border border-[#e5e7eb] rounded-md text-sm text-[#374151]" onClick={async () => {
                 setFeedback(null);
                 setError(null);
                 const deleteRes = await commerce.deleteProduct(item.id);
@@ -233,9 +294,12 @@ function AdminProductsPage({ commerce }: { commerce: CommerceData }) {
                 }
                 setFeedback(`${item.name} deleted.`);
               }}>Delete</button>
-            </div>
-          </div>
+              </div>
+            </td>
+          </tr>
         ))}
+          </tbody>
+        </table>
       </div>
     </AdminLayout>
   );
@@ -245,11 +309,11 @@ function AdminOrdersPage({ commerce }: { commerce: CommerceData }) {
   const statuses: OrderRecord["status"][] = ["pending", "processing", "fulfilled", "cancelled"];
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  return <AdminLayout title="Orders" commerce={commerce}>{message && <p className="mb-3 text-sm text-emerald-300">{message}</p>}{error && <p className="mb-3 text-sm text-red-300">{error}</p>}<div className="space-y-3">{commerce.orders.map((order) => <div key={order.id} className="bg-white/5 border border-white/10 p-4 flex flex-wrap items-center justify-between gap-3"><div><p>{order.id} • {order.customer_name}</p><p className="text-sm text-white/60">{order.customer_email} • ${order.total_amount}</p></div><select className="bg-white/10 p-2" value={order.status} onChange={async (e) => { setMessage(null); setError(null); const result = await commerce.updateOrder(order.id, { status: e.target.value as OrderRecord["status"] }); if (!result.ok) { setError(result.error ?? "Failed to update order."); return; } setMessage(`Order ${order.id} updated.`); }}>{statuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>)}</div></AdminLayout>;
+  return <AdminLayout title="Orders" commerce={commerce}>{message && <p className="text-sm text-[#16a34a]">{message}</p>}{error && <p className="text-sm text-[#dc2626]">{error}</p>}<div className="bg-white rounded-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-x-auto"><table className="w-full"><thead className="bg-[#f9fafb]"><tr><th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Order</th><th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Customer</th><th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Total</th><th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Status</th><th className="text-right px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Update</th></tr></thead><tbody>{commerce.orders.map((order) => <tr key={order.id} className="border-t border-[#f3f4f6] hover:bg-[#f9fafb]"><td className="px-4 py-3 text-sm font-medium">{order.id}</td><td className="px-4 py-3 text-sm"><p>{order.customer_name}</p><p className="text-[#6b7280]">{order.customer_email}</p></td><td className="px-4 py-3 text-sm">${order.total_amount}</td><td className="px-4 py-3"><span className={`inline-flex rounded-full px-[10px] py-[2px] text-xs ${statusTone(order.status)}`}>{order.status}</span></td><td className="px-4 py-3 text-right"><select className="border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" value={order.status} onChange={async (e) => { setMessage(null); setError(null); const result = await commerce.updateOrder(order.id, { status: e.target.value as OrderRecord["status"] }); if (!result.ok) { setError(result.error ?? "Failed to update order."); return; } setMessage(`Order ${order.id} updated.`); }}>{statuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></td></tr>)}</tbody></table></div></AdminLayout>;
 }
 
 function AdminCustomersPage({ commerce }: { commerce: CommerceData }) {
-  return <AdminLayout title="Customers" commerce={commerce}><div className="space-y-3">{commerce.customers.map((customer) => <CustomerRow key={customer.id} customer={customer} onSave={(input) => commerce.updateCustomer(customer.id, input)} />)}</div></AdminLayout>;
+  return <AdminLayout title="Customers" commerce={commerce}><div className="bg-white rounded-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-x-auto"><table className="w-full"><thead className="bg-[#f9fafb]"><tr><th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Name</th><th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Email</th><th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Orders</th><th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Spend</th><th className="text-right px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Action</th></tr></thead><tbody>{commerce.customers.map((customer) => <CustomerRow key={customer.id} customer={customer} onSave={(input) => commerce.updateCustomer(customer.id, input)} />)}</tbody></table></div></AdminLayout>;
 }
 
 function CustomerRow({ customer, onSave }: { customer: CustomerRecord; onSave: (input: Partial<CustomerRecord>) => Promise<{ ok: boolean; error?: string }>; }) {
@@ -257,12 +321,12 @@ function CustomerRow({ customer, onSave }: { customer: CustomerRecord; onSave: (
   const [orders, setOrders] = useState(String(customer.total_orders));
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  return <div className="bg-white/5 border border-white/10 p-4"><p>{customer.full_name}</p><p className="text-sm text-white/60">{customer.email}</p><div className="mt-3 flex gap-2"><input className="bg-white/10 p-2 text-sm" value={orders} onChange={(e) => setOrders(e.target.value)} /><input className="bg-white/10 p-2 text-sm" value={spend} onChange={(e) => setSpend(e.target.value)} /><button className="px-3 py-1 border border-white/30 text-sm" onClick={async () => { setMessage(null); setError(null); const result = await onSave({ total_orders: Number(orders), total_spend: Number(spend) }); if (!result.ok) { setError(result.error ?? "Failed to update customer."); return; } setMessage("Saved."); }}>Save</button></div>{message && <p className="mt-2 text-xs text-emerald-300">{message}</p>}{error && <p className="mt-2 text-xs text-red-300">{error}</p>}</div>;
+  return <tr className="border-t border-[#f3f4f6] hover:bg-[#f9fafb]"><td className="px-4 py-3 text-sm font-medium">{customer.full_name}</td><td className="px-4 py-3 text-sm text-[#6b7280]">{customer.email}</td><td className="px-4 py-3"><input className="w-24 border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" value={orders} onChange={(e) => setOrders(e.target.value)} /></td><td className="px-4 py-3"><input className="w-28 border border-[#e5e7eb] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#6366f1] focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]" value={spend} onChange={(e) => setSpend(e.target.value)} /></td><td className="px-4 py-3 text-right"><button className="px-3 py-1 border border-[#e5e7eb] rounded-md text-sm text-[#374151]" onClick={async () => { setMessage(null); setError(null); const result = await onSave({ total_orders: Number(orders), total_spend: Number(spend) }); if (!result.ok) { setError(result.error ?? "Failed to update customer."); return; } setMessage("Saved."); }}>Save</button>{message && <p className="mt-1 text-xs text-[#16a34a]">{message}</p>}{error && <p className="mt-1 text-xs text-[#dc2626]">{error}</p>}</td></tr>;
 }
 
 function AdminAnalyticsPage({ commerce }: { commerce: CommerceData }) {
   const data = commerce.orders.slice(0, 8).map((order) => ({ month: new Date(order.created_at).toLocaleString("en-US", { month: "short" }), revenue: order.total_amount }));
-  return <AdminLayout title="Analytics" commerce={commerce}><div className="h-80 bg-white/5 p-4 border border-white/10"><ResponsiveContainer width="100%" height="100%"><AreaChart data={data}><defs><linearGradient id="r" x1="0" x2="0" y1="0" y2="1"><stop offset="5%" stopColor="#d7e2f7" stopOpacity={0.7} /><stop offset="95%" stopColor="#d7e2f7" stopOpacity={0} /></linearGradient></defs><CartesianGrid stroke="rgba(255,255,255,0.12)" /><XAxis dataKey="month" stroke="rgba(255,255,255,0.6)" /><YAxis stroke="rgba(255,255,255,0.6)" /><Tooltip /><Area type="monotone" dataKey="revenue" stroke="#d7e2f7" fill="url(#r)" /></AreaChart></ResponsiveContainer></div></AdminLayout>;
+  return <AdminLayout title="Analytics" commerce={commerce}><div className="h-80 bg-white rounded-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-5"><ResponsiveContainer width="100%" height="100%"><AreaChart data={data}><CartesianGrid stroke="#f3f4f6" /><XAxis dataKey="month" stroke="#9ca3af" /><YAxis stroke="#9ca3af" /><Tooltip /><Area type="monotone" dataKey="revenue" stroke="#4f46e5" fill="#eef2ff" /></AreaChart></ResponsiveContainer></div></AdminLayout>;
 }
 
 function AdminMLPage({ commerce }: { commerce: CommerceData }) {
@@ -287,7 +351,7 @@ function AdminMLPage({ commerce }: { commerce: CommerceData }) {
   const vip = insights.filter((i) => i.segment === "VIP Customer").length;
   const atRisk = insights.filter((i) => i.segment === "At Risk Customer").length;
   const repeat = insights.filter((i) => i.repeatPurchaseConfidence > 75).length;
-  return <AdminLayout title="Machine Learning" commerce={commerce}><div className="grid md:grid-cols-4 gap-4">{[{ k: "VIP Customers", v: vip }, { k: "Predicted Repeat Buyers", v: repeat }, { k: "At Risk Customers", v: atRisk }, { k: "Best Campaign Opportunity", v: "Creator Collection" }].map((box) => <div key={box.k} className="bg-white/5 border border-white/10 p-4"><p className="text-xs text-white/60 uppercase">{box.k}</p><p className="text-3xl mt-3 font-light">{box.v}</p></div>)}</div><div className="mt-6 bg-white/5 border border-white/10 p-5"><p className="text-white/70 mb-3">Customer Classification</p>{insights.map((i) => <div key={i.id} className="flex items-center justify-between py-2 border-b border-white/10"><p>{i.id}</p><p>{i.segment}</p><p>{i.repeatPurchaseConfidence}%</p></div>)}</div></AdminLayout>;
+  return <AdminLayout title="Machine Learning" commerce={commerce}><div className="grid [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))] gap-4">{[{ k: "VIP Customers", v: vip }, { k: "Predicted Repeat Buyers", v: repeat }, { k: "At Risk Customers", v: atRisk }, { k: "Best Campaign Opportunity", v: "Creator Collection" }].map((box) => <div key={box.k} className={`${box.k === "Best Campaign Opportunity" ? "bg-[#eef2ff]" : "bg-white"} rounded-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-5`}><p className="text-[11px] text-[#6b7280] uppercase tracking-[0.05em]">{box.k}</p><p className={`text-[28px] mt-2 font-bold ${box.k === "Best Campaign Opportunity" ? "text-[#4f46e5]" : "text-[#111827]"}`}>{box.v}</p></div>)}</div><div className="bg-white rounded-[10px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-5"><p className="text-[#111827] mb-3 font-medium">Customer Classification</p><div className="overflow-x-auto"><table className="w-full"><thead className="bg-[#f9fafb]"><tr><th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Customer</th><th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Segment</th><th className="text-left px-4 py-3 text-[11px] uppercase tracking-[0.05em] text-[#6b7280] font-semibold">Confidence</th></tr></thead><tbody>{insights.map((i) => <tr key={i.id} className="border-t border-[#f3f4f6] hover:bg-[#f9fafb]"><td className="px-4 py-3 text-sm">{i.id}</td><td className="px-4 py-3 text-sm"><span className={`inline-flex rounded-full px-[10px] py-[2px] text-xs ${i.segment === "VIP Customer" ? "bg-[#dcfce7] text-[#16a34a]" : i.segment === "At Risk Customer" ? "bg-[#fee2e2] text-[#dc2626]" : "bg-[#f3f4f6] text-[#374151]"}`}>{i.segment}</span></td><td className="px-4 py-3 text-sm">{i.repeatPurchaseConfidence}%</td></tr>)}</tbody></table></div></div></AdminLayout>;
 }
 
 export default function App() {
