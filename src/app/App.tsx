@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { AnimatePresence, LayoutGroup, motion, useScroll, useTransform } from "framer-motion";
-import { ArrowRight, Heart } from "lucide-react";
+import { ArrowRight, Cpu, Heart, Mail, MapPin, Phone, Search, Shield, ShoppingBag, X, Zap } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import * as tf from "@tensorflow/tfjs";
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -19,13 +19,15 @@ function AppShell() {
   const isAdminRoute = location.pathname.startsWith("/admin");
   return (
     <div className="min-h-screen bg-[#f4f4f2] text-[#121212]">
-      {!isAdminRoute && <Navbar />}
+      {!isAdminRoute && <Navbar products={commerce.products} />}
       <main className={isAdminRoute ? "" : "pt-16"}>
         <AnimatePresence mode="wait">
           <motion.div key={location.pathname} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
             <Routes>
               <Route path="/" element={<LandingPage products={commerce.products} />} />
               <Route path="/products" element={<ProductsPage products={commerce.products} />} />
+              <Route path="/new-arrivals" element={<CategoryLandingPage products={commerce.products} label="New Arrivals" filter="featured" />} />
+              <Route path="/collections" element={<CollectionsPage products={commerce.products} />} />
               <Route path="/products/:slug" element={<ProductDetailPage products={commerce.products} />} />
               <Route path="/categories/laptops" element={<CategoryPage products={commerce.products} category="laptops" />} />
               <Route path="/categories/phones" element={<CategoryPage products={commerce.products} category="phones" />} />
@@ -139,25 +141,568 @@ function CampaignShowcase() {
   return <section className="py-24 px-6 md:px-10 bg-[#0f1114] text-white"><div className="max-w-[1320px] mx-auto"><p className="uppercase text-xs tracking-[0.2em] text-white/60">Featured Collections</p><AnimatePresence mode="wait"><motion.div key={promoSlides[idx].title} initial={{ opacity: 0.2 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-6 grid lg:grid-cols-[1.2fr_0.8fr] gap-10 items-end"><img src={promoSlides[idx].image} alt={promoSlides[idx].title} className="w-full h-[62vh] object-cover" /><div><h3 className="text-4xl md:text-6xl font-light tracking-tight">{promoSlides[idx].title}</h3><p className="mt-4 text-white/70">{promoSlides[idx].subtitle}</p><div className="flex gap-2 mt-8">{promoSlides.map((slide, dotIdx) => <button key={slide.title} onClick={() => setIdx(dotIdx)} className={`h-1.5 rounded-full transition-all ${dotIdx === idx ? "w-10 bg-white" : "w-5 bg-white/35"}`} aria-label={`Go to ${slide.title}`} />)}</div></div></motion.div></AnimatePresence></div></section>;
 }
 
-function ProductRows({ list }: { list: Product[] }) {
+function ProductCard({ product, index }: { product: Product; index: number }) {
   const { addToCart, toggleWishlist, wishlist } = useCommerceStore();
-  return <div className="space-y-20">{list.map((product, idx) => <section key={product.id} className="max-w-[1320px] mx-auto px-6 md:px-10"><div className={`grid md:grid-cols-2 gap-12 items-center ${idx % 2 ? "" : "md:[&>*:first-child]:order-2"}`}><img src={product.images[idx % product.images.length]} alt={product.name} className="w-full h-[56vh] object-cover" /><div><h2 className="text-4xl md:text-6xl font-light tracking-tight">{product.name}</h2><p className="text-black/60 mt-4">{product.description}</p><div className="flex gap-3 mt-7"><Link to={`/products/${product.slug}`} className="px-6 py-2.5 rounded-full border border-black/30 text-sm">View</Link><button onClick={() => addToCart(product.id)} className="px-6 py-2.5 rounded-full bg-black text-white text-sm">Add to Cart</button><button onClick={() => toggleWishlist(product.id)} className="p-2 rounded-full border border-black/20" aria-label="Toggle wishlist"><Heart className={`w-4 h-4 ${wishlist.includes(product.id) ? "fill-black" : ""}`} /></button></div></div></div></section>)}</div>;
+  const isSaved = wishlist.includes(product.id);
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: index * 0.05 }}
+      className="group overflow-hidden rounded-[32px] border border-black/10 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.05)]"
+    >
+      <div className="relative overflow-hidden">
+        <img src={product.images[0]} alt={product.name} className="w-full h-64 object-cover transition-transform duration-500 group-hover:scale-105" />
+        <button
+          type="button"
+          onClick={() => toggleWishlist(product.id)}
+          aria-label="Toggle wishlist"
+          className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-white/90 text-black transition-colors hover:bg-black hover:text-white"
+        >
+          <Heart className={`h-4 w-4 ${isSaved ? "fill-black" : ""}`} />
+        </button>
+      </div>
+      <div className="space-y-4 p-6">
+        <div>
+          <h3 className="text-2xl font-light tracking-tight">{product.name}</h3>
+          <p className="mt-2 text-sm text-black/60">{product.tagline}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-sm font-medium">${product.price.toFixed(2)}</p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Link to={`/products/${product.slug}`} className="rounded-full border border-black/20 px-4 py-2 text-sm transition-colors hover:bg-black hover:text-white">
+            View
+          </Link>
+          <button onClick={() => addToCart(product.id)} className="rounded-full bg-black px-4 py-2 text-sm text-white">
+            Add to Cart
+          </button>
+        </div>
+      </div>
+    </motion.article>
+  );
 }
 
-function ProductsPage({ products }: { products: Product[] }) { return <section className="py-20"><ProductRows list={products} /></section>; }
-function CategoryPage({ products, category }: { products: Product[]; category: Category }) { return <section className="py-20"><ProductRows list={products.filter((p) => p.category === category)} /></section>; }
+function ProductsPage({ products }: { products: Product[] }) {
+  const categories: (Category | "all")[] = ["all", "laptops", "phones", "tablets", "desktops"];
+  const [activeFilter, setActiveFilter] = useState<Category | "all">("all");
+  const filtered = useMemo(() => (activeFilter === "all" ? products : products.filter((product) => product.category === activeFilter)), [activeFilter, products]);
+
+  return (
+    <section className="py-20 px-6 md:px-10 max-w-[1320px] mx-auto">
+      <div className="mb-10">
+        <h1 className="text-5xl md:text-7xl font-light tracking-tight">All Products</h1>
+        <p className="mt-4 text-black/60">The complete TechElite collection.</p>
+      </div>
+      <div className="mb-10 flex flex-wrap gap-3">
+        {categories.map((category) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => setActiveFilter(category)}
+            className={`rounded-full px-5 py-2 text-sm transition ${activeFilter === category ? "bg-black text-white" : "border border-black/20 text-black/70 hover:bg-black/5"}`}
+          >
+            {category === "all" ? "All" : category.charAt(0).toUpperCase() + category.slice(1)}
+          </button>
+        ))}
+      </div>
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        {filtered.map((product, index) => (
+          <ProductCard key={product.id} product={product} index={index} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CategoryPage({ products, category }: { products: Product[]; category: Category }) {
+  const filtered = useMemo(() => products.filter((product) => product.category === category), [category, products]);
+
+  return (
+    <section className="py-20 px-6 md:px-10 max-w-[1320px] mx-auto">
+      <div className="mb-10">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-black/50">
+          <Link to="/" className="hover:text-black">Home</Link>
+          <span>•</span>
+          <Link to="/products" className="hover:text-black">Products</Link>
+          <span>•</span>
+          <span>{category.charAt(0).toUpperCase() + category.slice(1)}</span>
+        </div>
+        <h1 className="mt-4 text-5xl md:text-7xl font-light tracking-tight">{category.charAt(0).toUpperCase() + category.slice(1)}</h1>
+        <p className="mt-4 text-black/60">A focused selection of TechElite devices in the {category} category.</p>
+      </div>
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        {filtered.map((product, index) => (
+          <ProductCard key={product.id} product={product} index={index} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ProductDetailPage({ products }: { products: Product[] }) {
   const { slug } = useParams();
   const product = products.find((p) => p.slug === slug);
   const [active, setActive] = useState(0);
   const { addToCart, toggleWishlist, wishlist } = useCommerceStore();
+
   if (!product) return <Navigate to="/products" replace />;
-  return <section className="px-6 md:px-10 py-20 max-w-[1320px] mx-auto"><h1 className="text-5xl md:text-8xl font-light tracking-tight">{product.name}</h1><p className="mt-5 max-w-2xl text-black/60">{product.description}</p><motion.img key={product.images[active]} src={product.images[active]} alt={product.name} className="w-full mt-12 h-[66vh] object-cover" initial={{ opacity: 0.2 }} animate={{ opacity: 1 }} /><div className="flex gap-4 mt-5">{product.images.map((_, i) => <button key={i} onClick={() => setActive(i)} className={`text-xs uppercase tracking-[0.2em] ${active === i ? "text-black" : "text-black/45"}`}>Frame {i + 1}</button>)}</div><div className="grid md:grid-cols-2 gap-10 mt-14"><div><p className="text-3xl font-light">${product.price}</p><div className="flex gap-3 mt-6"><button onClick={() => addToCart(product.id)} className="px-7 py-3 rounded-full bg-black text-white text-sm">Add to Cart</button><button onClick={() => toggleWishlist(product.id)} className="px-6 py-3 rounded-full border border-black/25 text-sm">{wishlist.includes(product.id) ? "Saved" : "Save"}</button></div></div><ul className="space-y-2 text-black/70">{product.specs.map((spec) => <li key={spec}>{spec}</li>)}</ul></div></section>;
+
+  return (
+    <section className="px-6 md:px-10 py-20 max-w-[1320px] mx-auto">
+      <h1 className="text-5xl md:text-8xl font-light tracking-tight">{product.name}</h1>
+      <p className="mt-5 max-w-2xl text-black/60">{product.description}</p>
+      <motion.img key={product.images[active]} src={product.images[active]} alt={product.name} className="w-full mt-12 h-[66vh] object-cover" initial={{ opacity: 0.2 }} animate={{ opacity: 1 }} />
+      <div className="flex flex-wrap gap-4 mt-5">
+        {product.images.map((_, i) => (
+          <button key={i} type="button" onClick={() => setActive(i)} className={`text-xs uppercase tracking-[0.2em] ${active === i ? "text-black" : "text-black/45"}`}>
+            Frame {i + 1}
+          </button>
+        ))}
+      </div>
+      <div className="grid md:grid-cols-2 gap-10 mt-14">
+        <div>
+          <p className="text-3xl font-light">${product.price.toFixed(2)}</p>
+          <div className="flex gap-3 mt-6 flex-wrap">
+            <button onClick={() => addToCart(product.id)} className="px-7 py-3 rounded-full bg-black text-white text-sm">
+              Add to Cart
+            </button>
+            <button onClick={() => toggleWishlist(product.id)} className="px-6 py-3 rounded-full border border-black/25 text-sm">
+              {wishlist.includes(product.id) ? "Saved" : "Save"}
+            </button>
+          </div>
+        </div>
+        <ul className="space-y-2 text-black/70">
+          {product.specs.map((spec) => (
+            <li key={spec}>{spec}</li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
 }
-function CartPage({ products }: { products: Product[] }) { const { cart, updateQuantity, removeFromCart } = useCommerceStore(); const rows = cart.map((item) => ({ ...item, product: products.find((p) => p.id === item.productId)! })).filter((i) => i.product); const total = rows.reduce((sum, row) => sum + row.product.price * row.quantity, 0); return <section className="max-w-4xl mx-auto px-6 py-20"><h1 className="text-5xl font-light">Cart</h1>{rows.map((row) => <div key={row.productId} className="py-6 border-b border-black/10 flex justify-between items-center gap-4"><p>{row.product.name}</p><div className="flex items-center gap-3"><button onClick={() => updateQuantity(row.productId, row.quantity - 1)}>-</button><span>{row.quantity}</span><button onClick={() => updateQuantity(row.productId, row.quantity + 1)}>+</button><button onClick={() => removeFromCart(row.productId)}>Remove</button></div></div>)}<p className="mt-10 text-2xl">Total ${total}</p></section>; }
-function WishlistPage({ products }: { products: Product[] }) { const { wishlist } = useCommerceStore(); return <section className="py-20"><ProductRows list={products.filter((p) => wishlist.includes(p.id))} /></section>; }
-function SearchPage({ products }: { products: Product[] }) { const navigate = useNavigate(); const { query, setQuery } = useCommerceStore(); const [selected, setSelected] = useState(0); const filtered = useMemo(() => products.filter((p) => `${p.name} ${p.brand} ${p.category} ${p.tagline}`.toLowerCase().includes(query.toLowerCase())), [products, query]); useEffect(() => setSelected(0), [query]); return <section className="py-20 px-6 md:px-10 max-w-5xl mx-auto"><h1 className="text-5xl md:text-7xl font-light tracking-tight">Search</h1><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "ArrowDown") setSelected((prev) => Math.min(prev + 1, filtered.length - 1)); if (e.key === "ArrowUp") setSelected((prev) => Math.max(prev - 1, 0)); if (e.key === "Enter" && filtered[selected]) navigate(`/products/${filtered[selected].slug}`); }} placeholder="Search products" className="w-full mt-8 border-b border-black/25 pb-4 text-2xl bg-transparent outline-none" /><div className="mt-10 space-y-3">{filtered.map((product, i) => <Link key={product.id} to={`/products/${product.slug}`} className={`block p-4 transition-colors ${selected === i ? "bg-black text-white" : "bg-white"}`}><p className="text-xl font-light">{product.name}</p><p className={`text-sm ${selected === i ? "text-white/70" : "text-black/60"}`}>{product.tagline}</p></Link>)}</div></section>; }
-function TextPage({ title, body }: { title: string; body: string }) { return <section className="px-6 py-28 max-w-4xl mx-auto"><h1 className="text-5xl md:text-7xl font-light tracking-tight">{title}</h1><p className="mt-8 text-lg text-black/65 max-w-2xl">{body}</p></section>; }
+
+function CartPage({ products }: { products: Product[] }) {
+  const { cart, updateQuantity, removeFromCart } = useCommerceStore();
+  const rows = cart
+    .map((item) => ({ ...item, product: products.find((p) => p.id === item.productId)! }))
+    .filter((i) => i.product);
+  const total = rows.reduce((sum, row) => sum + row.product.price * row.quantity, 0);
+
+  if (rows.length === 0) {
+    return (
+      <section className="max-w-6xl mx-auto px-6 py-20">
+        <h1 className="text-5xl font-light tracking-tight">Your Cart</h1>
+        <div className="mt-20 flex flex-col items-center justify-center gap-6 rounded-3xl border border-black/10 bg-white p-16 text-center">
+          <ShoppingBag className="h-16 w-16 opacity-20" />
+          <p className="text-xl font-light">Your cart is empty</p>
+          <Link to="/products" className="rounded-full border border-black/25 px-5 py-2 text-sm">
+            Continue Shopping
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="max-w-6xl mx-auto px-6 py-20">
+      <h1 className="text-5xl font-light tracking-tight">Your Cart</h1>
+      <div className="mt-12 grid gap-10 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <AnimatePresence mode="popLayout">
+            {rows.map((row) => (
+              <motion.div key={row.productId} layout exit={{ opacity: 0, x: -20 }} className="overflow-hidden rounded-3xl border border-black/10 bg-white p-5">
+                <div className="flex gap-4">
+                  <img src={row.product.images[0]} alt={row.product.name} className="h-20 w-20 rounded-3xl object-cover" />
+                  <div className="min-w-0 grow">
+                    <p className="text-lg font-medium">{row.product.name}</p>
+                    <p className="text-sm text-black/50">{row.product.tagline}</p>
+                    <p className="mt-3 text-sm font-medium">${row.product.price.toFixed(2)}</p>
+                  </div>
+                </div>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center rounded-full border border-black/10 bg-[#fafafa] px-3 py-2">
+                    <button type="button" onClick={() => updateQuantity(row.productId, row.quantity - 1)} className="text-sm text-black/70">
+                      −
+                    </button>
+                    <span className="mx-4 text-sm font-medium">{row.quantity}</span>
+                    <button type="button" onClick={() => updateQuantity(row.productId, row.quantity + 1)} className="text-sm text-black/70">
+                      +
+                    </button>
+                  </div>
+                  <button type="button" onClick={() => removeFromCart(row.productId)} className="text-sm text-black/60 hover:text-black transition-colors">
+                    Remove
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+        <aside className="rounded-[32px] border border-black/10 bg-white p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
+          <p className="text-sm uppercase tracking-[0.2em] text-black/50">Order Summary</p>
+          <div className="space-y-3 mt-4">
+            <div className="flex justify-between text-sm text-black/60">
+              <span>Subtotal</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm text-black/60">
+              <span>Shipping</span>
+              <span>Free</span>
+            </div>
+            <div className="h-px bg-black/5" />
+            <div className="flex justify-between text-lg font-semibold">
+              <span>Total</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+          </div>
+          <button onClick={() => {}} className="mt-4 w-full rounded-full bg-black py-3 text-sm text-white">
+            Proceed to Checkout
+          </button>
+          <Link to="/products" className="mt-4 block text-center text-sm text-black/70 hover:opacity-80 transition-opacity">
+            Continue Shopping
+          </Link>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function WishlistPage({ products }: { products: Product[] }) {
+  const { wishlist, addToCart, toggleWishlist } = useCommerceStore();
+  const saved = products.filter((product) => wishlist.includes(product.id));
+
+  if (saved.length === 0) {
+    return (
+      <section className="py-20 px-6 md:px-10 max-w-[1320px] mx-auto">
+        <h1 className="text-5xl font-light tracking-tight">Saved Items</h1>
+        <div className="mt-16 flex flex-col items-center justify-center gap-6 rounded-3xl border border-black/10 bg-white p-16 text-center">
+          <Heart className="h-16 w-16 opacity-20" />
+          <p className="text-xl font-light">Nothing saved yet.</p>
+          <Link to="/products" className="rounded-full border border-black/25 px-5 py-2 text-sm">
+            Browse Products
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="py-20 px-6 md:px-10 max-w-[1320px] mx-auto">
+      <h1 className="text-5xl font-light tracking-tight">Saved Items</h1>
+      <div className="mt-12 grid gap-8 sm:grid-cols-2 xl:grid-cols-3">
+        {saved.map((product, index) => (
+          <motion.div
+            key={product.id}
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: index * 0.04 }}
+            className="group overflow-hidden rounded-[28px] border border-black/10 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.05)]"
+          >
+            <div className="relative overflow-hidden">
+              <img src={product.images[0]} alt={product.name} className="w-full h-64 object-cover transition-transform duration-500 group-hover:scale-105" />
+            </div>
+            <div className="space-y-3 p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-light">{product.name}</h3>
+                  <p className="text-sm text-black/50">{product.tagline}</p>
+                </div>
+                <button onClick={() => toggleWishlist(product.id)} className="rounded-full border border-black/10 p-2 text-black/70" aria-label="Remove from wishlist">
+                  <Heart className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm font-medium">${product.price.toFixed(2)}</p>
+              <div className="flex flex-col gap-3">
+                <button onClick={() => { addToCart(product.id); toggleWishlist(product.id); }} className="rounded-full bg-black px-4 py-3 text-sm text-white">
+                  Move to Cart
+                </button>
+                <Link to={`/products/${product.slug}`} className="rounded-full border border-black/25 px-4 py-3 text-center text-sm">
+                  View
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SearchPage({ products }: { products: Product[] }) {
+  const navigate = useNavigate();
+  const { query, setQuery } = useCommerceStore();
+  const [selected, setSelected] = useState(0);
+  const filtered = useMemo(
+    () =>
+      products.filter((product) =>
+        `${product.name} ${product.brand} ${product.category} ${product.tagline}`.toLowerCase().includes(query.toLowerCase())
+      ),
+    [products, query]
+  );
+
+  useEffect(() => setSelected(0), [query]);
+
+  return (
+    <section className="py-20 px-6 md:px-10 max-w-6xl mx-auto">
+      <h1 className="text-5xl md:text-7xl font-light tracking-tight">Search</h1>
+      <div className="relative mt-10">
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-black/40" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") setSelected((prev) => Math.min(prev + 1, filtered.length - 1));
+            if (e.key === "ArrowUp") setSelected((prev) => Math.max(prev - 1, 0));
+            if (e.key === "Enter" && filtered[selected]) navigate(`/products/${filtered[selected].slug}`);
+          }}
+          placeholder="Search products"
+          className="w-full rounded-[28px] border border-black/10 bg-white px-12 py-5 text-xl outline-none focus:border-black/20"
+        />
+        {query && (
+          <button type="button" onClick={() => setQuery("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-black/60">
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      {filtered.length === 0 ? (
+        <div className="mt-16 rounded-3xl border border-black/10 bg-white p-14 text-center">
+          <p className="text-xl font-light">No results found.</p>
+          <p className="mt-3 text-sm text-black/60">Try another keyword or browse our product collection.</p>
+        </div>
+      ) : (
+        <div className="mt-8 grid gap-4">
+          {filtered.map((product, index) => (
+            <button
+              key={product.id}
+              type="button"
+              onClick={() => navigate(`/products/${product.slug}`)}
+              className={`group flex w-full items-center gap-4 overflow-hidden rounded-[28px] border p-4 transition ${selected === index ? "bg-black text-white" : "bg-white text-black"}`}
+            >
+              <img
+                src={product.images[0]}
+                alt={product.name}
+                className={`h-14 w-14 rounded-3xl object-cover ${selected === index ? "border border-white/20" : "border border-black/10"}`}
+              />
+              <div className="grow">
+                <p className="text-lg font-medium">{product.name}</p>
+                <p className={`mt-1 text-sm ${selected === index ? "text-white/70" : "text-black/60"}`}>{product.tagline}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className={`rounded-full border px-2 py-1 text-[11px] uppercase tracking-[0.2em] ${selected === index ? "border-white/20 text-white/70" : "border-black/10 text-black/50"}`}>
+                    {product.category}
+                  </span>
+                  <span className={`rounded-full border px-2 py-1 text-[11px] uppercase tracking-[0.2em] ${selected === index ? "border-white/20 text-white/70" : "border-black/10 text-black/50"}`}>
+                    ${product.price.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TextPage({ title, body }: { title: string; body: string }) {
+  if (title === "About") return <AboutPage />;
+  if (title === "Contact") return <ContactPage />;
+
+  return (
+    <section className="px-6 py-28 max-w-4xl mx-auto">
+      <h1 className="text-5xl md:text-7xl font-light tracking-tight">{title}</h1>
+      <p className="mt-8 text-lg text-black/65 max-w-2xl">{body}</p>
+    </section>
+  );
+}
+
+function AboutPage() {
+  const pillars = [
+    {
+      icon: Cpu,
+      title: "Sculpted Performance",
+      description: "Every product is designed to reduce friction and keep focus firmly on the task at hand."
+    },
+    {
+      icon: Zap,
+      title: "Confident Power",
+      description: "Advanced hardware configurations for creators who demand precise responsiveness."
+    },
+    {
+      icon: Shield,
+      title: "Dependable Craft",
+      description: "Durable materials and intelligent software that support long-term productivity."
+    }
+  ];
+
+  return (
+    <section className="px-6 md:px-10 py-24">
+      <div className="max-w-[1320px] mx-auto">
+        <div className="max-w-4xl">
+          <h1 className="text-5xl md:text-8xl font-light tracking-tight">We build technology that disappears into your life.</h1>
+          <p className="mt-6 text-lg text-black/65">TechElite creates premium tools that feel effortless and remain quietly dependable throughout the day.</p>
+        </div>
+
+        <div className="mt-20 grid gap-6 md:grid-cols-3">
+          {pillars.map((pillar) => {
+            const Icon = pillar.icon;
+            return (
+              <div key={pillar.title} className="rounded-3xl border border-black/10 bg-white p-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black text-white">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="mt-5 text-lg font-medium">{pillar.title}</h3>
+                <p className="mt-3 text-sm text-black/60">{pillar.description}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-24 text-center">
+          <p className="text-3xl md:text-5xl font-light italic text-black/70">"Precision is not an extra feature — it is the foundation of everything we build."</p>
+        </div>
+
+        <div className="mt-24 overflow-hidden rounded-[32px] border border-black/10 bg-black">
+          <motion.div className="flex whitespace-nowrap text-sm uppercase tracking-[0.3em] text-white" animate={{ x: [0, -50, -100] }} transition={{ repeat: Infinity, duration: 20, ease: "linear" }}>
+            <span className="px-10">TechElite · Precision · Performance · Focus ·</span>
+            <span className="px-10">TechElite · Precision · Performance · Focus ·</span>
+            <span className="px-10">TechElite · Precision · Performance · Focus ·</span>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ContactPage() {
+  const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
+  const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setStatus("loading");
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    setStatus("success");
+  };
+
+  return (
+    <section className="px-6 md:px-10 py-24">
+      <div className="max-w-[1320px] mx-auto grid gap-16 lg:grid-cols-[1.15fr_0.85fr]">
+        <div>
+          <h1 className="text-5xl md:text-8xl font-light tracking-tight">Contact</h1>
+          <p className="mt-5 text-lg text-black/65 max-w-2xl">Reach our team for product questions, custom orders, or support.</p>
+          <div className="mt-12 space-y-6 rounded-[32px] bg-white p-8 border border-black/10">
+            <div className="flex items-start gap-4">
+              <Mail className="h-5 w-5 text-black/70" />
+              <div>
+                <p className="font-medium">Email</p>
+                <p className="text-sm text-black/60">concierge@techelite.example</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <Phone className="h-5 w-5 text-black/70" />
+              <div>
+                <p className="font-medium">Phone</p>
+                <p className="text-sm text-black/60">+1 (555) 123-4567</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <MapPin className="h-5 w-5 text-black/70" />
+              <div>
+                <p className="font-medium">Office</p>
+                <p className="text-sm text-black/60">1488 Elm Street, San Francisco, CA</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[32px] border border-black/10 bg-white p-8">
+          <AnimatePresence mode="wait">
+            {status === "success" ? (
+              <motion.div key="success" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="rounded-3xl bg-[#ecfdf5] p-8 text-center text-black/80">
+                <p className="text-2xl font-medium">Message sent ✓</p>
+                <p className="mt-3 text-sm">Thanks for reaching out, someone will be in touch shortly.</p>
+              </motion.div>
+            ) : (
+              <motion.form key="form" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onSubmit={handleSubmit} className="space-y-4">
+                <input required value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="Name" className="w-full border-b border-black/20 bg-transparent pb-3 text-sm outline-none placeholder:text-black/35" />
+                <input required type="email" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} placeholder="Email" className="w-full border-b border-black/20 bg-transparent pb-3 text-sm outline-none placeholder:text-black/35" />
+                <input required value={form.subject} onChange={(event) => setForm((prev) => ({ ...prev, subject: event.target.value }))} placeholder="Subject" className="w-full border-b border-black/20 bg-transparent pb-3 text-sm outline-none placeholder:text-black/35" />
+                <textarea required value={form.message} onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))} placeholder="Message" rows={5} className="w-full border-b border-black/20 bg-transparent pb-3 text-sm outline-none placeholder:text-black/35" />
+                <button type="submit" disabled={status === "loading"} className="inline-flex items-center justify-center gap-2 rounded-full bg-black px-6 py-3 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60">
+                  {status === "loading" ? <span className="h-4 w-4 animate-spin rounded-full border border-white border-t-transparent" /> : null}
+                  {status === "loading" ? "Sending..." : "Send Message"}
+                </button>
+              </motion.form>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CategoryLandingPage({ products, label, filter }: { products: Product[]; label: string; filter: "featured" | Category }) {
+  const filtered = useMemo(
+    () => (filter === "featured" ? products.filter((product) => product.featured) : products.filter((product) => product.category === filter)),
+    [filter, products]
+  );
+
+  return (
+    <section className="py-20 px-6 md:px-10 max-w-[1320px] mx-auto">
+      <div className="mb-12">
+        <h1 className="text-5xl md:text-7xl font-light tracking-tight">{label}</h1>
+        <p className="mt-4 text-black/60">Discover the latest TechElite essentials curated for every workflow.</p>
+      </div>
+      {filtered.length === 0 ? (
+        <div className="rounded-3xl border border-black/10 bg-white p-16 text-center text-black/60">No products available right now.</div>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((product, index) => (
+            <ProductCard key={product.id} product={product} index={index} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CollectionsPage({ products }: { products: Product[] }) {
+  const navigate = useNavigate();
+  const categories: Category[] = ["laptops", "phones", "tablets", "desktops"];
+  const collectionCards = categories.map((category) => ({
+    category,
+    image: products.find((product) => product.category === category)?.images[0] ?? "https://via.placeholder.com/800",
+    label: category.charAt(0).toUpperCase() + category.slice(1)
+  }));
+
+  return (
+    <section className="py-20">
+      <div className="max-w-[1320px] mx-auto grid gap-6 lg:grid-cols-2 px-6 md:px-10">
+        {collectionCards.map((collection) => (
+          <motion.button
+            key={collection.category}
+            type="button"
+            onClick={() => navigate(`/categories/${collection.category}`)}
+            whileHover={{ scale: 1.02 }}
+            className="group relative h-[70vh] overflow-hidden rounded-[32px] text-left"
+          >
+            <img src={collection.image} alt={collection.label} className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+            <div className="absolute bottom-8 left-8">
+              <p className="text-4xl font-light text-white">{collection.label}</p>
+              <span className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm text-white">
+                Browse Collection <ArrowRight className="h-4 w-4" />
+              </span>
+            </div>
+          </motion.button>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 const adminNav = [
   { label: "Dashboard", path: "/admin" },
