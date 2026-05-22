@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { EditorialScene } from '../../app/components/EditorialScene';
 import { LifestyleSceneDesktop } from '../../app/components/LifestyleSceneDesktop';
+import { ProductSceneLaptop } from '../../app/components/ProductSceneLaptop';
 import { ProductSceneTablet } from '../../app/components/ProductSceneTablet';
 import { SplitScenePhone } from '../../app/components/SplitScenePhone';
 import { supabase } from '../../lib/supabase';
@@ -152,6 +153,16 @@ export function ShopPage({ products }: { products: Product[] }) {
           </div>
         </div>
       </section>
+
+      {laptop && (
+        <ProductSceneLaptop
+          title="Laptop Spotlight"
+          subtitle={laptop.tagline ?? laptop.description ?? 'Built for precision and power.'}
+          image={laptop.images?.[0] ?? ''}
+          onBuyNow={() => void buyNow(laptop)}
+          onLearnMore={() => void addProductToCart(laptop)}
+        />
+      )}
 
       <footer className="border-t border-black/10 px-6 py-10 md:px-10">
         <div className="mx-auto grid max-w-[1240px] gap-8 text-sm text-[#666666] md:grid-cols-4">
