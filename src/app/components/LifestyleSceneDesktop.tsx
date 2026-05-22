@@ -6,10 +6,19 @@ type LifestyleSceneDesktopProps = {
   image: string;
 };
 
-export function LifestyleSceneDesktop({ title, subtitle, image }: LifestyleSceneDesktopProps) {
+export function LifestyleSceneDesktop({
+  title,
+  subtitle,
+  image,
+}: LifestyleSceneDesktopProps) {
   return (
     <section className="relative min-h-screen flex items-center justify-center px-8 py-32 overflow-hidden">
-      <img src={image} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+      <img
+        src={image}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
       <div className="absolute inset-0 bg-black/20" />
 
       <motion.div
