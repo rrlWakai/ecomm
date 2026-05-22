@@ -42,7 +42,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     for (const line of guest) {
       const { data: existing } = await supabase.from('cart_items').select('*').eq('user_id', user.id).eq('product_id', line.productId).maybeSingle();
       if (!existing) await supabase.from('cart_items').insert({ user_id: user.id, product_id: line.productId, quantity: line.quantity });
-      else if (existing.quantity < line.quantity) await supabase.from('cart_items').update({ quantity: line.quantity }).eq('id', existing.id);
+      else await supabase.from('cart_items').update({ quantity: existing.quantity + line.quantity }).eq('id', existing.id);
     }
     localStorage.removeItem(GUEST_KEY);
     await get().syncFromDb();

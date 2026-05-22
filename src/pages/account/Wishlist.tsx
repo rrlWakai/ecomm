@@ -26,7 +26,7 @@ export function AccountWishlistPage() {
       <div className="mt-12 grid gap-10 md:grid-cols-3">
         {(wishlist.data ?? []).map((w: any) => (
           <article key={w.id}>
-            <img src={w.products?.images?.[0]} className="h-[340px] w-full object-cover" />
+            <img src={w.products?.images?.[0]} alt={`${w.products?.name ?? 'Wishlist item'} image`} className="h-[340px] w-full object-cover" />
             <div className="mt-4 border-t border-black/10 pt-4">
               <p className="text-2xl font-light tracking-tight">{w.products?.name}</p>
               <p className="mt-2 text-sm text-[#666666]">PHP {w.products?.price}</p>
