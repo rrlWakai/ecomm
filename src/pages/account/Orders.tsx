@@ -2,31 +2,31 @@ import { Link } from 'react-router-dom';
 import { useOrders } from '../../hooks/useOrders';
 
 const statusTone: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-blue-100 text-blue-800',
-  processing: 'bg-purple-100 text-purple-800',
-  shipped: 'bg-indigo-100 text-indigo-800',
-  delivered: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800'
+  pending: 'text-[#8a8a8a]',
+  confirmed: 'text-[#1a1a1a]',
+  processing: 'text-[#1a1a1a]',
+  shipped: 'text-[#1a1a1a]',
+  delivered: 'text-[#1a1a1a]',
+  cancelled: 'text-[#8a8a8a]'
 };
 
 export function AccountOrdersPage() {
   const { data, isLoading, error } = useOrders();
-  if (isLoading) return <main className="p-4">Loading...</main>;
-  if (error) return <main className="p-4">Failed to load orders</main>;
+  if (isLoading) return <main className="p-6">Loading...</main>;
+  if (error) return <main className="p-6">Failed to load orders</main>;
 
   return (
-    <main className="mx-auto max-w-4xl p-4">
-      <h1 className="text-2xl font-semibold">My Orders</h1>
-      <div className="mt-4 space-y-2">
+    <main className="mx-auto max-w-[980px] px-6 py-16 md:py-24">
+      <h1 className="text-5xl font-light tracking-tight md:text-7xl">My Orders</h1>
+      <div className="mt-10 space-y-0 border-t border-black/10">
         {(data ?? []).map((o: any) => (
-          <Link key={o.id} to={`/account/orders/${o.id}`} className="block bg-white border rounded p-3 hover:bg-slate-50">
+          <Link key={o.id} to={`/account/orders/${o.id}`} className="block border-b border-black/10 py-7 transition-opacity hover:opacity-70">
             <div className="flex items-center justify-between">
-              <p className="font-medium">{o.id}</p>
-              <span className={`text-xs px-2 py-1 rounded-full uppercase ${statusTone[o.status] ?? 'bg-slate-100 text-slate-700'}`}>{o.status}</span>
+              <p className="text-xl font-light">{o.id}</p>
+              <span className={`text-xs uppercase tracking-[0.16em] ${statusTone[o.status] ?? 'text-[#8a8a8a]'}`}>{o.status}</span>
             </div>
-            <p className="text-sm">{new Date(o.created_at).toLocaleString()}</p>
-            <p className="text-sm">Items: {o.order_items?.length ?? 0} | Total: PHP {o.total_amount}</p>
+            <p className="mt-2 text-sm text-[#666666]">{new Date(o.created_at).toLocaleString()}</p>
+            <p className="mt-1 text-sm text-[#666666]">Items: {o.order_items?.length ?? 0} | Total: PHP {o.total_amount}</p>
           </Link>
         ))}
       </div>

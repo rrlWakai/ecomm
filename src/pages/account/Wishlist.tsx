@@ -21,17 +21,19 @@ export function AccountWishlistPage() {
   };
 
   return (
-    <main className="mx-auto max-w-6xl p-4">
-      <h1 className="text-2xl font-semibold">Wishlist</h1>
-      <div className="mt-4 grid md:grid-cols-3 gap-3">
+    <main className="mx-auto max-w-[1240px] px-6 py-16 md:px-10 md:py-24">
+      <h1 className="text-5xl font-light tracking-tight md:text-7xl">Wishlist</h1>
+      <div className="mt-12 grid gap-10 md:grid-cols-3">
         {(wishlist.data ?? []).map((w: any) => (
-          <article key={w.id} className="bg-white border rounded p-3">
-            <img src={w.products?.images?.[0]} className="h-40 w-full object-cover rounded" />
-            <p className="mt-2 font-medium">{w.products?.name}</p>
-            <p className="text-sm">PHP {w.products?.price}</p>
-            <div className="mt-2 flex gap-2">
-              <button className="border rounded px-3 py-1 text-sm" onClick={() => void addItem({ productId: w.product_id, quantity: 1, price: Number(w.products?.price ?? 0), name: w.products?.name ?? 'Item', image: w.products?.images?.[0] ?? '' })}>Add to cart</button>
-              <button className="border rounded px-3 py-1 text-sm text-red-600" onClick={() => void remove(w.id)}>Remove</button>
+          <article key={w.id}>
+            <img src={w.products?.images?.[0]} className="h-[340px] w-full object-cover" />
+            <div className="mt-4 border-t border-black/10 pt-4">
+              <p className="text-2xl font-light tracking-tight">{w.products?.name}</p>
+              <p className="mt-2 text-sm text-[#666666]">PHP {w.products?.price}</p>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button className="border border-black/20 px-4 py-2 text-sm transition-all hover:-translate-y-0.5 hover:border-black/35" onClick={() => void addItem({ productId: w.product_id, quantity: 1, price: Number(w.products?.price ?? 0), name: w.products?.name ?? 'Item', image: w.products?.images?.[0] ?? '' })}>Add to cart</button>
+              <button className="border border-black/20 px-4 py-2 text-sm text-[#8a8a8a] transition-all hover:-translate-y-0.5 hover:border-black/35 hover:text-black" onClick={() => void remove(w.id)}>Remove</button>
             </div>
           </article>
         ))}

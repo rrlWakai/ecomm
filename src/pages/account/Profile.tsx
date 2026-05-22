@@ -6,7 +6,7 @@ export function AccountProfilePage() {
   const { user, profile, fetchProfile } = useAuthStore();
   const [message, setMessage] = useState<string | null>(null);
 
-  if (!user) return <main className="p-4">Please login to manage profile.</main>;
+  if (!user) return <main className="p-6">Please login to manage profile.</main>;
 
   const onSave = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -47,17 +47,19 @@ export function AccountProfilePage() {
   };
 
   return (
-    <main className="mx-auto max-w-3xl p-4 space-y-4">
-      <h1 className="text-2xl font-semibold">Profile</h1>
-      <form className="bg-white border rounded p-3 space-y-2" onSubmit={onSave}>
-        <input name="full_name" defaultValue={profile?.full_name ?? ''} className="border rounded p-2 w-full" placeholder="Full name" />
-        <input name="phone" defaultValue={profile?.phone ?? ''} className="border rounded p-2 w-full" placeholder="Phone" />
-        <button className="border rounded px-3 py-1">Save Profile</button>
+    <main className="mx-auto max-w-[980px] px-6 py-16 md:py-24">
+      <h1 className="text-5xl font-light tracking-tight md:text-7xl">Profile</h1>
+      <div className="mt-10 space-y-8">
+      <form className="space-y-3 border-t border-black/10 pt-8" onSubmit={onSave}>
+        <input name="full_name" defaultValue={profile?.full_name ?? ''} className="w-full border-b border-black/20 bg-transparent py-3 text-lg outline-none placeholder:text-[#8a8a8a]" placeholder="Full name" />
+        <input name="phone" defaultValue={profile?.phone ?? ''} className="w-full border-b border-black/20 bg-transparent py-3 text-lg outline-none placeholder:text-[#8a8a8a]" placeholder="Phone" />
+        <button className="mt-4 border border-black bg-black px-5 py-2 text-sm text-white transition-opacity hover:opacity-85">Save Profile</button>
       </form>
-      <div className="bg-white border rounded p-3 space-y-2"><p className="font-medium">Avatar</p><input type="file" accept="image/*" onChange={onAvatar} /></div>
-      <form className="bg-white border rounded p-3 space-y-2" onSubmit={updateEmail}><p className="font-medium">Change Email</p><input name="email" type="email" defaultValue={user.email ?? ''} className="border rounded p-2 w-full" /><button className="border rounded px-3 py-1">Update Email</button></form>
-      <form className="bg-white border rounded p-3 space-y-2" onSubmit={updatePassword}><p className="font-medium">Change Password</p><input name="password" type="password" minLength={8} className="border rounded p-2 w-full" /><button className="border rounded px-3 py-1">Update Password</button></form>
-      {message && <p className="text-sm">{message}</p>}
+      <div className="space-y-2 border-t border-black/10 pt-8"><p className="text-sm uppercase tracking-[0.16em] text-[#666666]">Avatar</p><input type="file" accept="image/*" onChange={onAvatar} /></div>
+      <form className="space-y-3 border-t border-black/10 pt-8" onSubmit={updateEmail}><p className="text-sm uppercase tracking-[0.16em] text-[#666666]">Change Email</p><input name="email" type="email" defaultValue={user.email ?? ''} className="w-full border-b border-black/20 bg-transparent py-3 text-lg outline-none" /><button className="border border-black/20 px-4 py-2 text-sm">Update Email</button></form>
+      <form className="space-y-3 border-t border-black/10 pt-8" onSubmit={updatePassword}><p className="text-sm uppercase tracking-[0.16em] text-[#666666]">Change Password</p><input name="password" type="password" minLength={8} className="w-full border-b border-black/20 bg-transparent py-3 text-lg outline-none" /><button className="border border-black/20 px-4 py-2 text-sm">Update Password</button></form>
+      {message && <p className="text-sm text-[#666666]">{message}</p>}
+      </div>
     </main>
   );
 }
