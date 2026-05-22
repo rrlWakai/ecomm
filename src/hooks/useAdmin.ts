@@ -13,7 +13,34 @@ export function useAdmin() {
   const dashboard = useQuery<Database['public']['Functions']['get_dashboard_stats']['Returns'][0] | null>({ queryKey: ['admin-dashboard'], queryFn: async () => (await supabase.rpc('get_dashboard_stats')).data?.[0] ?? null });
   const orders = useQuery<any[]>({ queryKey: ['admin-orders'], queryFn: async () => (await supabase.from('orders').select('*, profiles(full_name), order_items(*, products(name))').order('created_at', { ascending: false })).data ?? [] });
   const customers = useQuery<Database['public']['Tables']['profiles']['Row'][]>({ queryKey: ['admin-customers'], queryFn: async () => (await supabase.from('profiles').select('*').eq('role', 'customer').order('created_at', { ascending: false })).data ?? [] });
-  const products = useQuery<ProductWithCategory[]>({ queryKey: ['admin-products'], queryFn: async () => (await supabase.from('products').select('*, categories(name)').order('created_at', { ascending: false })).data ?? [] });
+  const products = useQuery<ProductWithCategory[]>({
+    queryKey: ['admin-products'],
+    queryFn: async () => {
+      const productsQuery = await supabase
+        .from('products')
+        .select('*, categories(name)')
+        .order('created_at', { ascending: false });
+
+      if (!productsQuery.error) return productsQuery.data ?? [];
+
+      const fallbackProducts = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (fallbackProducts.error) throw new Error(fallbackProducts.error.message);
+
+      const categoriesResult = await supabase.from('categories').select('id,name');
+      const categoryMap = new Map<string, string>(
+        (categoriesResult.data ?? []).map((category: any) => [category.id, category.name]),
+      );
+
+      return (fallbackProducts.data ?? []).map((product: any) => ({
+        ...product,
+        categories: product.categories ?? (product.category_id ? { name: categoryMap.get(product.category_id) ?? 'Uncategorized' } : null)
+      }));
+    }
+  });
   const categories = useQuery<CategoryRow[]>({ queryKey: ['admin-categories'], queryFn: async () => (await supabase.from('categories').select('*').order('name', { ascending: true })).data ?? [] });
   const wishlist = useQuery<WishlistRow[]>({ queryKey: ['admin-wishlist'], queryFn: async () => (await supabase.from('wishlist').select('product_id')).data ?? [] });
   return { dashboard, orders, customers, products, categories, wishlist };
