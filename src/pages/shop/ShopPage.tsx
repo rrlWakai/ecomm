@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { EditorialScene } from '../../app/components/EditorialScene';
 import { LifestyleSceneDesktop } from '../../app/components/LifestyleSceneDesktop';
-import { ProductSceneLaptop } from '../../app/components/ProductSceneLaptop';
 import { ProductSceneTablet } from '../../app/components/ProductSceneTablet';
 import { SplitScenePhone } from '../../app/components/SplitScenePhone';
 import { supabase } from '../../lib/supabase';
@@ -52,15 +51,26 @@ export function ShopPage({ products }: { products: Product[] }) {
   return (
     <main className="bg-[#f5f5f3]">
       <section className="px-6 pb-12 pt-24 md:px-10 md:pb-20 md:pt-28">
-        {laptop && (
-          <ProductSceneLaptop
-            title="Performance Redefined"
-            subtitle={laptop.tagline ?? laptop.description ?? 'Built for precision and power.'}
-            image={laptop.images?.[0] ?? ''}
-            onBuyNow={() => void buyNow(laptop)}
-            onLearnMore={() => window.scrollTo({ top: 1500, behavior: 'smooth' })}
-          />
-        )}
+        <div className="mx-auto max-w-[1240px]">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-[#8a8a8a]">Laptop Hero Scene</p>
+          <h1 className="mt-3 max-w-4xl text-5xl font-light leading-[0.92] tracking-tight text-[#1a1a1a] md:text-[84px]">Performance Redefined</h1>
+          <p className="mt-3 max-w-2xl text-sm text-[#666666] md:text-base">
+            {laptop?.tagline ?? laptop?.description ?? 'Built for precision and power.'}
+          </p>
+          <div className="mt-6 flex gap-3">
+            <button className="rounded-full bg-black px-5 py-2 text-xs text-white transition-opacity hover:opacity-85" onClick={() => laptop && void buyNow(laptop)}>Buy Now</button>
+            <button className="rounded-full border border-black/20 px-5 py-2 text-xs text-[#1a1a1a] transition-colors hover:border-black/40" onClick={() => window.scrollTo({ top: 1500, behavior: 'smooth' })}>Learn More</button>
+          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.95 }}
+            className="mt-10 bg-[#efefed] p-4 md:p-7"
+          >
+            <img src={laptop?.images?.[0]} className="h-[430px] w-full object-cover md:h-[650px]" />
+          </motion.div>
+        </div>
       </section>
 
       <EditorialScene title="Technology should disappear into your workflow." subtitle="Not the other way around." />
